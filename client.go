@@ -29,9 +29,30 @@ func chk(e error) {
 	}
 }
 
+func getCredentials() (user, pass string) {
+	fmt.Printf("User: ")
+
+	_, err := fmt.Fscanf(os.Stdin, "%s", &user)
+
+	if err != nil {
+		fmt.Printf(err.Error())
+	}
+
+	fmt.Printf("Password: ")
+
+	_, err = fmt.Fscanf(os.Stdin, "%s", &pass)
+
+	if err != nil {
+		fmt.Printf(err.Error())
+	}
+
+	return
+}
+
 func main() {
 	fmt.Println("Iniciando cliente...")
-	if login("admin", "admin") {
+	user, pass := getCredentials()
+	if login(user, pass) {
 		client()
 	}
 }
