@@ -1,10 +1,13 @@
 ## Synopsis
 
-Secure chat developed for Seguridad en el Diseño Software subject that belongs to Grado en Ingeniería Informática from the Universidad de Alicante.
+Secure chat client developed for Seguridad en el Diseño Software subject that belongs to Grado en Ingeniería Informática from the Universidad de Alicante.
 
 ## Run
 
-go run client.go
+```sh
+    go run client.go
+```
+
 
 ## Contributors
 
