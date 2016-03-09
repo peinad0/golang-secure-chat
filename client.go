@@ -31,7 +31,9 @@ func chk(e error) {
 
 func main() {
 	fmt.Println("Iniciando cliente...")
-	client()
+	if login("admin", "admin") {
+		client()
+	}
 }
 
 func client() {
@@ -49,4 +51,11 @@ func client() {
 		netscan.Scan()                             // escaneamos la conexión
 		fmt.Println("servidor: " + netscan.Text()) // mostramos mensaje desde el servidor
 	}
+}
+
+func login(user string, pass string) bool {
+	if user == "admin" && pass == "admin" {
+		return true
+	}
+	return false
 }
