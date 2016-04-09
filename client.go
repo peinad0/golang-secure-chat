@@ -16,11 +16,16 @@ go run cnx.go cli
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"net"
-	"os"
+	"github.com/howeyc/gopass"
+	"golang.org/x/net/websocket"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"net/url"
 )
+
+var origin = "http://localhost:8080"
 
 // función para comprobar errores (ahorra escritura)
 func chk(e error) {
@@ -31,22 +36,122 @@ func chk(e error) {
 
 func main() {
 	fmt.Println("Iniciando cliente...")
-	client()
+
+	//ws, err := websocket.Dial(url, "", origin)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	var c string
+	for c != "q" {
+		loginMenu()
+
+		fmt.Scanf("%s", &c)
+		switch {
+		case c == "1":
+			login()
+		case c == "2":
+			register()
+		}
+	}
+
+	bye()
 }
 
-func client() {
-	conn, err := net.Dial("tcp", "localhost:1337") // llamamos al servidor
-	chk(err)
-	defer conn.Close() // es importante cerrar la conexión al finalizar
-
-	fmt.Println("conectado a ", conn.RemoteAddr())
-
-	keyscan := bufio.NewScanner(os.Stdin) // scanner para la entrada estándar (teclado)
-	netscan := bufio.NewScanner(conn)     // scanner para la conexión (datos desde el servidor)
-
-	for keyscan.Scan() { // escaneamos la entrada
-		fmt.Fprintln(conn, keyscan.Text())         // enviamos la entrada al servidor
-		netscan.Scan()                             // escaneamos la conexión
-		fmt.Println("servidor: " + netscan.Text()) // mostramos mensaje desde el servidor
+func client(user string /*ws *websocket.Conn*/) {
+	fmt.Println("Bienvenido " + user + "!!")
+	var c string
+	for c != "q" {
+		menu()
+		fmt.Scanf("%s", &c)
+		switch {
+		case c == "1":
+			fmt.Println("Listado usuarios conectados")
+		case c == "2":
+			fmt.Println("Listado de chats abiertos")
+		}
 	}
+}
+
+func menu() {
+	fmt.Println()
+	fmt.Println()
+	fmt.Println("Securechat")
+	fmt.Println("___________________")
+	fmt.Println()
+	fmt.Println("1. Nuevo Chat")
+	fmt.Println("2. Ver Chats")
+	fmt.Println("q. Cerrar sesión")
+}
+
+func loginMenu() {
+	fmt.Println()
+	fmt.Println()
+	fmt.Println("Securechat")
+	fmt.Println("___________________")
+	fmt.Println()
+	fmt.Println("1. Iniciar Sesión")
+	fmt.Println("2. Registarse")
+	fmt.Println("q. salir")
+}
+
+func bye() {
+	fmt.Println()
+	fmt.Println("Adios!!")
+}
+
+func register() {
+	var user string
+	fmt.Println("Nombre de usuario")
+	fmt.Scan(&user)
+	fmt.Println("Contraseña")
+	pass, _ := gopass.GetPasswd()
+
+	fmt.Println("Usuario", user, "Contraseña", string(pass))
+
+	client(user)
+}
+
+func login() {
+	var user string
+	fmt.Println("Nombre de usuario")
+	fmt.Scan(&user)
+	fmt.Println("Contraseña")
+	pass, _ := gopass.GetPasswd()
+
+	res, err := http.PostForm(origin+"/login", url.Values{"user": {user}, "pass": {string(pass)}})
+
+	if err != nil {
+		fmt.Println("Error en POST")
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+
+	if err != nil {
+		fmt.Println("Error read", err)
+	}
+
+	logged := string(body)
+
+	res.Body.Close()
+
+	if logged == "true" {
+		client(user)
+	}
+}
+
+func send(ws *websocket.Conn, m string) {
+
+	message := []byte(m)
+	_, err := ws.Write(message)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Send: %s\n", message)
+
+	var msg = make([]byte, 512)
+	_, err = ws.Read(msg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Receive: %s\n", msg)
 }
