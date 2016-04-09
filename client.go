@@ -106,9 +106,25 @@ func register() {
 	fmt.Println("Contraseña")
 	pass, _ := gopass.GetPasswd()
 
-	fmt.Println("Usuario", user, "Contraseña", string(pass))
+	res, err := http.PostForm(origin+"/register", url.Values{"user": {user}, "pass": {string(pass)}})
 
-	client(user)
+	if err != nil {
+		fmt.Println("Error en POST")
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+
+	if err != nil {
+		fmt.Println("Error read", err)
+	}
+
+	registered := string(body)
+
+	res.Body.Close()
+
+	if registered == "true" {
+		client(user)
+	}
 }
 
 func login() {
