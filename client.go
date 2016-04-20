@@ -16,6 +16,8 @@ go run cnx.go cli
 package main
 
 import (
+	"crypto/sha512"
+	"encoding/base64"
 	"fmt"
 	"github.com/howeyc/gopass"
 	"golang.org/x/net/websocket"
@@ -106,7 +108,11 @@ func register() {
 	fmt.Println("Contraseña")
 	pass, _ := gopass.GetPasswd()
 
-	res, err := http.PostForm(origin+"/register", url.Values{"user": {user}, "pass": {string(pass)}})
+	passEnc, _ := hash(pass)
+
+	encodedString := base64.StdEncoding.EncodeToString(passEnc)
+
+	res, err := http.PostForm(origin+"/register", url.Values{"user": {user}, "pass": {encodedString}})
 
 	if err != nil {
 		fmt.Println("Error en POST")
@@ -125,6 +131,20 @@ func register() {
 	if registered == "true" {
 		client(user)
 	}
+}
+
+func hash(pass []byte) (keyPass, keyEnc []byte) {
+	hash := sha512.Sum512(pass)
+
+	fmt.Println("hash", hash)
+
+	keyPass = hash[:32]
+	keyEnc = hash[32:]
+
+	fmt.Println("key", keyPass)
+	fmt.Println("enc", keyEnc)
+
+	return
 }
 
 func login() {
