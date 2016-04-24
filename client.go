@@ -136,13 +136,8 @@ func register() {
 func hash(pass []byte) (keyPass, keyEnc []byte) {
 	hash := sha512.Sum512(pass)
 
-	fmt.Println("hash", hash)
-
 	keyPass = hash[:32]
 	keyEnc = hash[32:]
-
-	fmt.Println("key", keyPass)
-	fmt.Println("enc", keyEnc)
 
 	return
 }
@@ -154,7 +149,11 @@ func login() {
 	fmt.Println("Contraseña")
 	pass, _ := gopass.GetPasswd()
 
-	res, err := http.PostForm(origin+"/login", url.Values{"user": {user}, "pass": {string(pass)}})
+	passEnc, _ := hash(pass)
+
+	encodedString := base64.StdEncoding.EncodeToString(passEnc)
+
+	res, err := http.PostForm(origin+"/login", url.Values{"user": {user}, "pass": {encodedString}})
 
 	if err != nil {
 		fmt.Println("Error en POST")
