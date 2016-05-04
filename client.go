@@ -16,8 +16,12 @@ go run cnx.go cli
 package main
 
 import (
+	"crypto/aes"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha512"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/howeyc/gopass"
 	"golang.org/x/net/websocket"
@@ -28,6 +32,16 @@ import (
 )
 
 var origin = "http://localhost:8080"
+
+// User structure
+type User struct {
+	Username  string `bson:"name"`
+	Password  string `bson:"password"`
+	Salt      string `bson:"salt"`
+	PubKey    string `bson:"pubkey"`
+	PrivKey   string `bson:"privkey"`
+	CipherMsg string `bson:"ciphermsg"`
+}
 
 // función para comprobar errores (ahorra escritura)
 func chk(e error) {
@@ -102,17 +116,43 @@ func bye() {
 }
 
 func register() {
-	var user string
+	var username string
 	fmt.Println("Nombre de usuario")
-	fmt.Scan(&user)
+	fmt.Scan(&username)
 	fmt.Println("Contraseña")
 	pass, _ := gopass.GetPasswd()
 
-	passEnc, _ := hash(pass)
+	passEnc, keyEnc := hash(pass)
 
-	encodedString := base64.StdEncoding.EncodeToString(passEnc)
+	pub, priv := getKeys(keyEnc)
 
-	res, err := http.PostForm(origin+"/register", url.Values{"user": {user}, "pass": {encodedString}})
+	encodedPass := base64.StdEncoding.EncodeToString(passEnc)
+	encodedPub := base64.StdEncoding.EncodeToString(pub)
+	encodedPriv := base64.StdEncoding.EncodeToString(priv)
+
+	//
+	// #DBUG
+
+	publicKey := rsa.PublicKey{}
+
+	json.Unmarshal(pub, &publicKey)
+
+	fmt.Println("PUBLIC", publicKey)
+
+	var label []byte
+
+	test, err := rsa.EncryptOAEP(sha512.New(), rand.Reader, &publicKey, []byte(username), label)
+
+	if err != nil {
+		fmt.Println("ERROR OAEP", err)
+	}
+
+	encodedTest := base64.StdEncoding.EncodeToString(test)
+
+	//
+	//
+
+	res, err := http.PostForm(origin+"/register", url.Values{"username": {username}, "pass": {encodedPass}, "pub": {encodedPub}, "priv": {encodedPriv}, "msg": {encodedTest}})
 
 	if err != nil {
 		fmt.Println("Error en POST")
@@ -129,8 +169,53 @@ func register() {
 	res.Body.Close()
 
 	if registered == "true" {
-		client(user)
+		client(username)
 	}
+}
+
+func getKeys(key []byte) (public, private []byte) {
+
+	priv := generateKeys()
+
+	private, public = cipherKeys(priv, key)
+
+	return
+}
+
+func generateKeys() *rsa.PrivateKey {
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+
+	if err != nil {
+		fmt.Println("ERROR")
+	}
+
+	privKey.Precompute() // acelera el uso con precálculo
+
+	return privKey
+}
+
+func cipherKeys(privKey *rsa.PrivateKey, key []byte) (priv, pub []byte) {
+	block, err := aes.NewCipher(key)
+
+	if err != nil {
+		fmt.Println("ERROR AES")
+	}
+
+	priv, err = json.Marshal(privKey)
+
+	if err != nil {
+		fmt.Println("ERROR MARSHAL PRIV")
+	}
+
+	pub, err = json.Marshal(privKey.PublicKey)
+
+	if err != nil {
+		fmt.Println("ERROR MARSHAL PUB")
+	}
+
+	block.Encrypt(priv, priv)
+
+	return
 }
 
 func hash(pass []byte) (keyPass, keyEnc []byte) {
@@ -143,17 +228,17 @@ func hash(pass []byte) (keyPass, keyEnc []byte) {
 }
 
 func login() {
-	var user string
+	var username string
 	fmt.Println("Nombre de usuario")
-	fmt.Scan(&user)
+	fmt.Scan(&username)
 	fmt.Println("Contraseña")
 	pass, _ := gopass.GetPasswd()
 
-	passEnc, _ := hash(pass)
+	passEnc, keyEnc := hash(pass)
 
 	encodedString := base64.StdEncoding.EncodeToString(passEnc)
 
-	res, err := http.PostForm(origin+"/login", url.Values{"user": {user}, "pass": {encodedString}})
+	res, err := http.PostForm(origin+"/login", url.Values{"username": {username}, "pass": {encodedString}})
 
 	if err != nil {
 		fmt.Println("Error en POST")
@@ -165,13 +250,46 @@ func login() {
 		fmt.Println("Error read", err)
 	}
 
-	logged := string(body)
+	var user User
+
+	json.Unmarshal(body, &user)
 
 	res.Body.Close()
 
-	if logged == "true" {
-		client(user)
+	private, _ := base64.StdEncoding.DecodeString(user.PrivKey)
+	decodedMsg, _ := base64.StdEncoding.DecodeString(user.CipherMsg)
+
+	msgTest := descifrar(decodedMsg, keyEnc, private)
+
+	fmt.Println("USUARIO", string(msgTest))
+
+	if user.Username != "" {
+		client(user.Username)
 	}
+}
+
+func descifrar(msg, pass, private []byte) []byte {
+	block, err := aes.NewCipher(pass)
+
+	if err != nil {
+		fmt.Println("ERROR aes", err)
+	}
+
+	// modo de operacion newCTR o new OFB
+	block.Decrypt(private, private)
+
+	p := rsa.PrivateKey{}
+
+	err = json.Unmarshal(private, &p)
+
+	var label []byte
+	mensaje, err := rsa.DecryptOAEP(sha512.New(), rand.Reader, &p, msg, label)
+
+	if err != nil {
+		fmt.Println("ERROR DecryptOAEP", err)
+	}
+
+	return mensaje
 }
 
 func send(ws *websocket.Conn, m string) {
