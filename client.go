@@ -137,8 +137,6 @@ func register() {
 
 	json.Unmarshal(pub, &publicKey)
 
-	fmt.Println("PUBLIC", publicKey)
-
 	var label []byte
 
 	test, err := rsa.EncryptOAEP(sha512.New(), rand.Reader, &publicKey, []byte(username), label)
