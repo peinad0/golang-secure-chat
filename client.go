@@ -22,6 +22,7 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/howeyc/gopass"
 	"golang.org/x/net/websocket"
@@ -35,12 +36,12 @@ var origin = "http://localhost:8080"
 
 // User structure
 type User struct {
-	Username  string `bson:"name"`
-	Password  string `bson:"password"`
-	Salt      string `bson:"salt"`
-	PubKey    string `bson:"pubkey"`
-	PrivKey   string `bson:"privkey"`
-	CipherMsg string `bson:"ciphermsg"`
+	ID       string
+	Username string
+	Password string
+	Salt     string
+	PubKey   string
+	PrivKey  string
 }
 
 // función para comprobar errores (ahorra escritura)
@@ -73,19 +74,84 @@ func main() {
 	bye()
 }
 
-func client(user string /*ws *websocket.Conn*/) {
-	fmt.Println("Bienvenido " + user + "!!")
+func client(user User /*ws *websocket.Conn*/) {
+	fmt.Println("Bienvenido " + user.Username + "!!")
 	var c string
 	for c != "q" {
 		menu()
 		fmt.Scanf("%s", &c)
 		switch {
 		case c == "1":
-			fmt.Println("Listado usuarios conectados")
+			searchedUser, err := searchUser()
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				startChat(searchedUser.Username, searchedUser.PubKey)
+			}
+
 		case c == "2":
 			fmt.Println("Listado de chats abiertos")
 		}
 	}
+}
+
+func searchUser() (User, error) {
+	var username string
+	fmt.Scan(&username)
+
+	res, err := http.PostForm(origin+"/search_user", url.Values{"username": {username}})
+
+	body, err := ioutil.ReadAll(res.Body)
+
+	if err != nil {
+		fmt.Println("ERROR", err)
+	}
+
+	var user User
+
+	json.Unmarshal(body, &user)
+
+	res.Body.Close()
+	if user.ID != "" {
+		return user, nil
+	}
+	return user, errors.New("No se ha encontrado ningún usuario con nombre: " + username)
+}
+
+func startChat(username, pubKeystr string) {
+	fmt.Println(username)
+
+	word := randomKey(16)
+	pubKey, _ := base64.StdEncoding.DecodeString(pubKeystr)
+	encripted := myaes(word, pubKey)
+	//myEncripted := myaes(word, myPubKey)
+
+	//////
+	res, _ := http.PostForm(origin+"/new_chat", url.Values{"username": {username}, "key": {base64.StdEncoding.EncodeToString(encripted)}})
+
+	body, _ := ioutil.ReadAll(res.Body)
+
+	fmt.Println(string(body))
+}
+
+func randomKey(size int) []byte {
+	encripted := make([]byte, size)
+
+	rand.Read(encripted)
+
+	return encripted
+}
+
+func myaes(word, key []byte) []byte {
+	block, err := aes.NewCipher(key)
+
+	if err != nil {
+		fmt.Println("ERROR AES")
+	}
+
+	block.Encrypt(word, word)
+
+	return word
 }
 
 func menu() {
@@ -133,24 +199,18 @@ func register() {
 	//
 	// #DBUG
 
-	publicKey := rsa.PublicKey{}
-
-	json.Unmarshal(pub, &publicKey)
-
-	var label []byte
-
-	test, err := rsa.EncryptOAEP(sha512.New(), rand.Reader, &publicKey, []byte(username), label)
-
-	if err != nil {
-		fmt.Println("ERROR OAEP", err)
-	}
-
-	encodedTest := base64.StdEncoding.EncodeToString(test)
+	// publicKey := rsa.PublicKey{}
+	//
+	// json.Unmarshal(pub, &publicKey)
+	//
+	// var label []byte
+	//
+	// test, _ := rsa.EncryptOAEP(sha512.New(), rand.Reader, &publicKey, []byte(username), label)
 
 	//
 	//
 
-	res, err := http.PostForm(origin+"/register", url.Values{"username": {username}, "pass": {encodedPass}, "pub": {encodedPub}, "priv": {encodedPriv}, "msg": {encodedTest}})
+	res, err := http.PostForm(origin+"/register", url.Values{"username": {username}, "pass": {encodedPass}, "pub": {encodedPub}, "priv": {encodedPriv}})
 
 	if err != nil {
 		fmt.Println("Error en POST")
@@ -167,7 +227,9 @@ func register() {
 	res.Body.Close()
 
 	if registered == "true" {
-		client(username)
+		user := User{}
+		user.Username = username
+		client(User{})
 	}
 }
 
@@ -232,7 +294,7 @@ func login() {
 	fmt.Println("Contraseña")
 	pass, _ := gopass.GetPasswd()
 
-	passEnc, keyEnc := hash(pass)
+	passEnc, _ := hash(pass)
 
 	encodedString := base64.StdEncoding.EncodeToString(passEnc)
 
@@ -254,15 +316,8 @@ func login() {
 
 	res.Body.Close()
 
-	private, _ := base64.StdEncoding.DecodeString(user.PrivKey)
-	decodedMsg, _ := base64.StdEncoding.DecodeString(user.CipherMsg)
-
-	msgTest := descifrar(decodedMsg, keyEnc, private)
-
-	fmt.Println("USUARIO", string(msgTest))
-
 	if user.Username != "" {
-		client(user.Username)
+		client(user)
 	}
 }
 
