@@ -25,7 +25,7 @@ func printTitle() {
 	fmt.Println()
 }
 
-func menu() {
+func actionsMenu() {
 	printTitle()
 	fmt.Println("1. Nuevo Chat")
 	fmt.Println("2. Ver Chats")
@@ -47,14 +47,18 @@ func client(user models.User) {
 	fmt.Println("Bienvenido " + user.Username + "!!")
 	var c string
 	for c != "q" {
-		menu()
+		actionsMenu()
 		fmt.Scanf("%s", &c)
 		switch {
 		case c == "1":
-			searchedUser, _ := models.SearchUser(user.Username)
-			if len(searchedUser) == 1 {
-				startChat(searchedUser[0].Username, searchedUser[0].PubKey)
+			fmt.Println("¿Con quién quieres hablar?")
+			var peerUsername string
+			fmt.Scanf("%s", &c)
+			searchedUsers, _ := models.SearchUser(peerUsername)
+			if len(searchedUsers) == 1 {
+				startChat(searchedUsers[0].Username, searchedUsers[0].PubKey)
 			} else {
+				showUsers(searchedUsers)
 			}
 
 		case c == "2":
@@ -63,14 +67,22 @@ func client(user models.User) {
 	}
 }
 
+func showUsers(users []models.User) {
+	for index, user := range users {
+		fmt.Println(index, user.Username)
+		user.Print()
+	}
+}
+
 func startChat(username, pubKeystr string) {
 	fmt.Println(username)
 
 	word := utils.RandomKey(16)
+
 	pubKey, _ := base64.StdEncoding.DecodeString(pubKeystr)
 	encripted := utils.Myaes(word, pubKey)
-	//myEncripted := myaes(word, myPubKey)
-	//////
+
+	//FIXME
 	res, _ := http.PostForm(origin+"/new_chat", url.Values{"username": {username}, "key": {base64.StdEncoding.EncodeToString(encripted)}})
 	body, _ := ioutil.ReadAll(res.Body)
 	fmt.Println(string(body))
@@ -83,6 +95,7 @@ func registerMenu() {
 	fmt.Println("Contraseña")
 	pass, _ := gopass.GetPasswd()
 	user := models.RegisterUser(username, pass)
+	user.Print()
 	if user.Username != "" {
 		client(user)
 	}

@@ -78,9 +78,24 @@ func RegisterUser(username string, password []byte) User {
 	if !errorchecker.Check("ERROR post", err) {
 		body, err := ioutil.ReadAll(res.Body)
 		if !errorchecker.Check("Error read", err) {
-			json.Unmarshal(body, &user)
-			res.Body.Close()
+			if string(body[:len(body)]) != "{error: 'user exists'}" {
+				json.Unmarshal(body, &user)
+				res.Body.Close()
+			}
 		}
+		fmt.Print(body)
 	}
 	return user
+}
+
+// Print prints invoking user
+func (u *User) Print() {
+	fmt.Println("################### USER #####################")
+	fmt.Println(u.ID)
+	fmt.Println(u.Username)
+	fmt.Println(u.Password)
+	fmt.Println(u.PrivKey)
+	fmt.Println(u.PubKey)
+	fmt.Println(u.Salt)
+	fmt.Println("################# END USER ###################")
 }
