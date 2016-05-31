@@ -53,7 +53,7 @@ func client(user models.User) {
 		case c == "1":
 			fmt.Println("¿Con quién quieres hablar?")
 			var peerUsername string
-			fmt.Scanf("%s", &c)
+			fmt.Scanf("%s", &peerUsername)
 			searchedUsers, _ := models.SearchUser(peerUsername)
 			if len(searchedUsers) == 1 {
 				startChat(searchedUsers[0].Username, searchedUsers[0].PubKey)

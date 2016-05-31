@@ -42,12 +42,8 @@ func SearchUser(username string) ([]User, error) {
 	res, err := http.PostForm(chatloadenv.ServerOrigin+"/search_user", url.Values{"username": {username}})
 	body, err := ioutil.ReadAll(res.Body)
 	if !errorchecker.Check("ERROR in reading message", err) {
-		var user User
-		json.Unmarshal(body, &user)
+		json.Unmarshal(body, &users)
 		res.Body.Close()
-		if user.ID != "" {
-			users = append(users, user)
-		}
 	}
 	return users, err
 }
