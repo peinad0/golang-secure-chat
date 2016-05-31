@@ -10,6 +10,7 @@ import (
 	"project/client/src/errorchecker"
 	"project/client/src/models"
 	"project/client/src/utils"
+	"strconv"
 
 	"github.com/howeyc/gopass"
 )
@@ -45,6 +46,7 @@ func bye() {
 
 func client(user models.User) {
 	fmt.Println("Bienvenido " + user.Username + "!!")
+	currentUser = user
 	var c string
 	for c != "q" {
 		actionsMenu()
@@ -56,9 +58,12 @@ func client(user models.User) {
 			fmt.Scanf("%s", &peerUsername)
 			searchedUsers, _ := models.SearchUser(peerUsername)
 			if len(searchedUsers) == 1 {
-				startChat(searchedUsers[0].Username, searchedUsers[0].PubKey)
+				startChat(searchedUsers[0])
 			} else {
-				showUsers(searchedUsers)
+				selection := showUsers(searchedUsers)
+
+				fmt.Println("selection", selection)
+				startChat(searchedUsers[selection])
 			}
 
 		case c == "2":
@@ -67,23 +72,31 @@ func client(user models.User) {
 	}
 }
 
-func showUsers(users []models.User) {
+func showUsers(users []models.User) int {
+	var userSelected string
 	for index, user := range users {
 		fmt.Println(index, user.Username)
-		user.Print()
 	}
+	fmt.Println("Seleccciona el usuario:")
+	fmt.Scanf("%s", &userSelected)
+	selection, _ := strconv.Atoi(userSelected)
+	return selection
 }
 
-func startChat(username, pubKeystr string) {
-	fmt.Println(username)
-
+func startChat(receiver models.User) {
 	word := utils.RandomKey(16)
 
-	pubKey, _ := base64.StdEncoding.DecodeString(pubKeystr)
-	encripted := utils.Myaes(word, pubKey)
+	receiverPubKey, _ := base64.StdEncoding.DecodeString(receiver.PubKey)
+	receiverKey := utils.Myaes(word, receiverPubKey[:32])
+	senderPubKey, _ := base64.StdEncoding.DecodeString(currentUser.PubKey)
+	senderKey := utils.Myaes(word, senderPubKey[:32])
 
 	//FIXME
-	res, _ := http.PostForm(origin+"/new_chat", url.Values{"username": {username}, "key": {base64.StdEncoding.EncodeToString(encripted)}})
+	res, _ := http.PostForm(origin+"/new_chat", url.Values{
+		"sender":      {currentUser.Username},
+		"senderkey":   {base64.StdEncoding.EncodeToString(senderKey)},
+		"receiver":    {receiver.Username},
+		"receiverkey": {base64.StdEncoding.EncodeToString(receiverKey)}})
 	body, _ := ioutil.ReadAll(res.Body)
 	fmt.Println(string(body))
 }

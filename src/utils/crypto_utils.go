@@ -104,7 +104,7 @@ func RandomKey(size int) []byte {
 func Myaes(word, key []byte) []byte {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		fmt.Println("ERROR AES 107")
+		fmt.Println("ERROR AES 107", err)
 	}
 	block.Encrypt(word, word)
 	return word
