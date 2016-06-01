@@ -62,6 +62,10 @@ func client(user models.User) {
 			models.StartChat(currentUser, searchedUsers[selection])
 		case c == "2":
 			fmt.Println("Listado de chats abiertos")
+			searchedChats, _ := models.GetChats(user)
+			selection := showChats(searchedChats)
+
+			models.OpenChat(searchedChats[selection], user)
 		}
 	}
 }
@@ -74,6 +78,17 @@ func showUsers(users []models.User) int {
 	fmt.Println("Seleccciona el usuario:")
 	fmt.Scanf("%s", &userSelected)
 	selection, _ := strconv.Atoi(userSelected)
+	return selection
+}
+
+func showChats(chats []models.Chat) int {
+	var chatSelected string
+	for index, chat := range chats {
+		fmt.Println(index, chat.Name)
+	}
+	fmt.Println("Seleccciona el chat:")
+	fmt.Scanf("%s", &chatSelected)
+	selection, _ := strconv.Atoi(chatSelected)
 	return selection
 }
 

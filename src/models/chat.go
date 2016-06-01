@@ -56,11 +56,11 @@ func StartChat(sender, receiver User) {
 		}
 	}
 
-	OpenChat(chat, sender, receiver)
+	OpenChat(chat, sender)
 }
 
 //OpenChat opens the chat connection
-func OpenChat(chat Chat, sender, receiver User) {
+func OpenChat(chat Chat, sender User) {
 	conn, err := net.Dial("tcp", "localhost:1337") // llamamos al servidor
 	if err != nil {
 		fmt.Println("ERROR", err)
@@ -88,8 +88,20 @@ func OpenChat(chat Chat, sender, receiver User) {
 		if text == "/exit" {
 			break
 		}
-		fmt.Fprintln(conn, keyscan.Text())                     // enviamos la entrada al servidor
-		netscan.Scan()                                         // escaneamos la conexión
-		fmt.Println(receiver.Username + ": " + netscan.Text()) // mostramos mensaje desde el servidor
+		fmt.Fprintln(conn, keyscan.Text())         // enviamos la entrada al servidor
+		netscan.Scan()                             // escaneamos la conexión
+		fmt.Println("Response: " + netscan.Text()) // mostramos mensaje desde el servidor
 	}
+}
+
+//GetChats get the list of chats the use has
+func GetChats(user User) ([]Chat, error) {
+	var chats []Chat
+	res, err := http.PostForm(chatloadenv.ServerOrigin+"/get_chats", url.Values{"userid": {user.ID}})
+	body, err := ioutil.ReadAll(res.Body)
+	if !errorchecker.Check("ERROR in reading message", err) {
+		json.Unmarshal(body, &chats)
+		res.Body.Close()
+	}
+	return chats, err
 }
