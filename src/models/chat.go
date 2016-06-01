@@ -17,7 +17,7 @@ import (
 
 // Message structure
 type Message struct {
-	ID      string `bson:"_id,omitempty"`
+	ID      string `bson:"id"`
 	Content string `bson:"content"`
 	Date    string `bson:"date"`
 	Sender  string `bson:"sender"`
@@ -74,6 +74,16 @@ func OpenChat(chat Chat, sender User) {
 
 	keyscan := bufio.NewScanner(os.Stdin) // scanner para la entrada estándar (teclado)
 	netscan := bufio.NewScanner(conn)     // scanner para la conexión (datos desde el servidor)
+
+	if len(chat.Messages) > 0 {
+		for _, msg := range chat.Messages {
+			if msg.Sender == sender.ID {
+				fmt.Println(msg.Content)
+			} else {
+				fmt.Println("Response: " + msg.Content)
+			}
+		}
+	}
 
 	// Send chat info to the server
 	chatInfo, _ := json.Marshal(chat)
