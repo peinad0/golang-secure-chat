@@ -1,15 +1,11 @@
 package main
 
 import (
-	"bufio"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"project/client/src/errorchecker"
 	"project/client/src/models"
 	"project/client/src/utils"
@@ -59,16 +55,11 @@ func client(user models.User) {
 			fmt.Println("¿Con quién quieres hablar?")
 			var peerUsername string
 			fmt.Scanf("%s", &peerUsername)
+
 			searchedUsers, _ := models.SearchUser(peerUsername)
-			if len(searchedUsers) == 1 {
-				startChat(searchedUsers[0])
-			} else {
-				selection := showUsers(searchedUsers)
+			selection := showUsers(searchedUsers)
 
-				fmt.Println("selection", selection)
-				startChat(searchedUsers[selection])
-			}
-
+			models.StartChat(currentUser, searchedUsers[selection])
 		case c == "2":
 			fmt.Println("Listado de chats abiertos")
 		}
@@ -84,41 +75,6 @@ func showUsers(users []models.User) int {
 	fmt.Scanf("%s", &userSelected)
 	selection, _ := strconv.Atoi(userSelected)
 	return selection
-}
-
-func startChat(receiver models.User) {
-	word := utils.RandomKey(16)
-
-	receiverPubKey, _ := base64.StdEncoding.DecodeString(receiver.PubKey)
-	receiverKey := utils.Myaes(word, receiverPubKey[:32])
-	senderPubKey, _ := base64.StdEncoding.DecodeString(currentUser.PubKey)
-	senderKey := utils.Myaes(word, senderPubKey[:32])
-
-	res, _ := http.PostForm(origin+"/new_chat", url.Values{
-		"sender":      {currentUser.Username},
-		"senderkey":   {base64.StdEncoding.EncodeToString(senderKey)},
-		"receiver":    {receiver.Username},
-		"receiverkey": {base64.StdEncoding.EncodeToString(receiverKey)}})
-	body, _ := ioutil.ReadAll(res.Body)
-	fmt.Println(string(body))
-
-	conn, err := net.Dial("tcp", "localhost:1337") // llamamos al servidor
-	if err != nil {
-		fmt.Println("ERROR", err)
-	}
-	fmt.Println("antes close")
-	defer conn.Close() // es importante cerrar la conexión al finalizar
-	fmt.Println("despues close")
-	fmt.Println("conectado a ", conn.RemoteAddr())
-
-	keyscan := bufio.NewScanner(os.Stdin) // scanner para la entrada estándar (teclado)
-	netscan := bufio.NewScanner(conn)     // scanner para la conexión (datos desde el servidor)
-
-	for keyscan.Scan() { // escaneamos la entrada
-		fmt.Fprintln(conn, keyscan.Text())         // enviamos la entrada al servidor
-		netscan.Scan()                             // escaneamos la conexión
-		fmt.Println("servidor: " + netscan.Text()) // mostramos mensaje desde el servidor
-	}
 }
 
 func registerMenu() {
