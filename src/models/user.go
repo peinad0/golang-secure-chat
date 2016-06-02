@@ -45,6 +45,7 @@ func SearchUser(username string) ([]User, error) {
 		json.Unmarshal(body, &users)
 		res.Body.Close()
 	}
+
 	return users, err
 }
 
@@ -86,12 +87,12 @@ func RegisterUser(username string, password []byte) User {
 
 // Print prints invoking user
 func (u *User) Print() {
-	fmt.Println("################### USER #####################")
+	fmt.Println("################### BEGING USER ###################")
 	fmt.Println(u.ID)
 	fmt.Println(u.Username)
 	fmt.Println(u.Password)
 	fmt.Println(u.PrivKey)
 	fmt.Println(u.PubKey)
 	fmt.Println(u.Salt)
-	fmt.Println("################# END USER ###################")
+	fmt.Println("#################### END USER #####################")
 }

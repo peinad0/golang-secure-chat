@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/aes"
+	"crypto/cipher"
 	crand "crypto/rand"
 	"crypto/rsa"
 	"crypto/sha512"
@@ -43,19 +44,17 @@ func Hash(password []byte) ([]byte, []byte) {
 // cipher the private key with AES using that key. It also returns the
 // public key.
 func CipherKeys(privKey *rsa.PrivateKey, key []byte) ([]byte, []byte) {
-	block, err := aes.NewCipher(key)
 	var privateKey, publicKey []byte
 	var errPriv, errPub error
-	if !errorchecker.Check("ERROR AES 49", err) {
-		privateKey, errPriv = json.Marshal(privKey)
-		if !errorchecker.Check("ERROR Marshall Priv", errPriv) {
-			publicKey, errPub = json.Marshal(privKey.Public())
-			if !errorchecker.Check("ERROR Marshall Pub", errPub) {
-				block.Encrypt(privateKey, publicKey)
-			}
+
+	privateKey, errPriv = json.Marshal(privKey)
+	if !errorchecker.Check("ERROR Marshall Priv", errPriv) {
+		publicKey, errPub = json.Marshal(privKey.PublicKey)
+		if !errorchecker.Check("ERROR Marshall Pub", errPub) {
+			privateKey = EncryptAES(Compress(privateKey), key)
 		}
 	}
-	return privateKey, publicKey
+	return privateKey, Compress(publicKey)
 }
 
 // GetKeys function
@@ -93,19 +92,30 @@ func Descifrar(msg, pass, private []byte) []byte {
 	return mensaje
 }
 
-// RandomKey function
+// EncryptAES función para cifrar (con AES en este caso)
+func EncryptAES(data, key []byte) (out []byte) {
+	out = make([]byte, len(data)+16)         // reservamos espacio para el IV al principio
+	rand.Read(out[:16])                      // generamos el IV
+	blk, err := aes.NewCipher(key)           // cifrador en bloque (AES), usa key
+	errorchecker.Check("ERROR encrypt", err) // comprobamos el error
+	ctr := cipher.NewCTR(blk, out[:16])      // cifrador en flujo: modo CTR, usa IV
+	ctr.XORKeyStream(out[16:], data)         // ciframos los datos
+	return
+}
+
+// DecryptAES función para descifrar
+func DecryptAES(data, key []byte) (out []byte) {
+	out = make([]byte, len(data)-16)         // la salida no va a tener el IV
+	blk, err := aes.NewCipher(key)           // cifrador en bloque (AES), usa key
+	errorchecker.Check("ERROR decrypt", err) // comprobamos el error
+	ctr := cipher.NewCTR(blk, data[:16])     // cifrador en flujo: modo CTR, usa IV
+	ctr.XORKeyStream(out, data[16:])         // desciframos (doble cifrado) los datos
+	return
+}
+
+// RandomKey function returning a byte array of size 'size'
 func RandomKey(size int) []byte {
 	encripted := make([]byte, size)
 	rand.Read(encripted)
 	return encripted
-}
-
-// Myaes function
-func Myaes(word, key []byte) []byte {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		fmt.Println("ERROR AES 107", err)
-	}
-	block.Encrypt(word, word)
-	return word
 }

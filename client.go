@@ -58,8 +58,9 @@ func client(user models.User) {
 
 			searchedUsers, _ := models.SearchUser(peerUsername)
 			selection := showUsers(searchedUsers)
-
-			models.StartChat(currentUser, searchedUsers[selection])
+			if selection != -1 {
+				models.StartChat(currentUser, searchedUsers[selection])
+			}
 		case c == "2":
 			fmt.Println("Listado de chats abiertos")
 			searchedChats, _ := models.GetChats(user)
@@ -68,17 +69,28 @@ func client(user models.User) {
 			models.OpenChat(searchedChats[selection], user)
 		}
 	}
+
+	postURL := origin + "/logout"
+	parameters := url.Values{"username": {currentUser.Username}}
+	_, err := http.PostForm(postURL, parameters)
+	if !errorchecker.Check("ERROR logout", err) {
+		fmt.Println("Logout successful")
+	}
 }
 
 func showUsers(users []models.User) int {
 	var userSelected string
-	for index, user := range users {
-		fmt.Println(index, user.Username)
+	if len(users) > 0 {
+		for index, user := range users {
+			fmt.Println(index, user.Username)
+		}
+		fmt.Println("Seleccciona el usuario:")
+		fmt.Scanf("%s", &userSelected)
+		selection, _ := strconv.Atoi(userSelected)
+		return selection
 	}
-	fmt.Println("Seleccciona el usuario:")
-	fmt.Scanf("%s", &userSelected)
-	selection, _ := strconv.Atoi(userSelected)
-	return selection
+	fmt.Println("No se encontraron usuarios.")
+	return -1
 }
 
 func showChats(chats []models.Chat) int {

@@ -17,19 +17,19 @@ import (
 
 // Message structure
 type Message struct {
-	ID      string `bson:"id"`
-	Content string `bson:"content"`
-	Date    string `bson:"date"`
-	Sender  string `bson:"sender"`
+	ID      string
+	Content string
+	Date    string
+	Sender  string
 }
 
 //Chat structure
 type Chat struct {
-	ID         string    `bson:"_id,omitempty"`
-	Components []string  `bson:"components"`
-	Messages   []Message `bson:"messages"`
-	Name       string    `bson:"name"`
-	Type       string    `bson:"type"`
+	ID         string
+	Components []string
+	Messages   []Message
+	Name       string
+	Type       string
 }
 
 //StartChat starts the chat in the server
@@ -37,10 +37,10 @@ func StartChat(sender, receiver User) {
 	var chat Chat
 	word := utils.RandomKey(16)
 
-	receiverPubKey, _ := base64.StdEncoding.DecodeString(receiver.PubKey)
-	receiverKey := utils.Myaes(word, receiverPubKey[:32])
-	senderPubKey, _ := base64.StdEncoding.DecodeString(sender.PubKey)
-	senderKey := utils.Myaes(word, senderPubKey[:32])
+	receiverPubKey := utils.Decode64(receiver.PubKey)
+	receiverKey := utils.EncryptAES(word, receiverPubKey[:32])
+	senderPubKey := utils.Decode64(sender.PubKey)
+	senderKey := utils.EncryptAES(word, senderPubKey[:32])
 
 	res, err := http.PostForm(chatloadenv.ServerOrigin+"/new_chat", url.Values{
 		"sender":      {sender.Username},
@@ -78,9 +78,9 @@ func OpenChat(chat Chat, sender User) {
 	if len(chat.Messages) > 0 {
 		for _, msg := range chat.Messages {
 			if msg.Sender == sender.ID {
-				fmt.Println(msg.Content)
+				fmt.Println("Yo: " + msg.Content)
 			} else {
-				fmt.Println("Response: " + msg.Content)
+				fmt.Println(sender.Username + ": " + msg.Content)
 			}
 		}
 	}
