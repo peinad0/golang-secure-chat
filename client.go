@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"project/client/src/constants"
 	"project/client/src/errorchecker"
 	"project/client/src/models"
 	"project/client/src/utils"
@@ -14,7 +15,7 @@ import (
 	"github.com/howeyc/gopass"
 )
 
-var origin = "http://localhost:8080"
+var origin = constants.ServerOrigin
 var currentUser models.User
 
 func printTitle() {
@@ -43,9 +44,8 @@ func bye() {
 	fmt.Println("\nVuelve pronto!!")
 }
 
-func client(user models.User) {
-	fmt.Println("Bienvenido " + user.Username + "!!")
-	currentUser = user
+func client() {
+	fmt.Println("Bienvenido " + currentUser.Username + "!")
 	var c string
 	for c != "q" {
 		actionsMenu()
@@ -56,17 +56,19 @@ func client(user models.User) {
 			var peerUsername string
 			fmt.Scanf("%s", &peerUsername)
 
-			searchedUsers, _ := models.SearchUser(peerUsername)
+			searchedUsers, _ := models.SearchUsers(peerUsername)
 			selection := showUsers(searchedUsers)
 			if selection != -1 {
 				models.StartChat(currentUser, searchedUsers[selection])
 			}
 		case c == "2":
-			fmt.Println("Listado de chats abiertos")
-			searchedChats, _ := models.GetChats(user)
+			fmt.Println("Listado de chats abiertos:")
+			searchedChats, _ := models.GetChats(currentUser)
 			selection := showChats(searchedChats)
+			if selection != -1 {
+				models.OpenChat(searchedChats[selection], currentUser)
+			}
 
-			models.OpenChat(searchedChats[selection], user)
 		}
 	}
 
@@ -84,10 +86,13 @@ func showUsers(users []models.User) int {
 		for index, user := range users {
 			fmt.Println(index, user.Username)
 		}
-		fmt.Println("Seleccciona el usuario:")
 		fmt.Scanf("%s", &userSelected)
-		selection, _ := strconv.Atoi(userSelected)
-		return selection
+		selection, err := strconv.Atoi(userSelected)
+		if err == nil && selection >= 0 && selection < len(users) {
+			return selection
+		}
+		fmt.Println("Error seleccionando usuario.")
+		return -1
 	}
 	fmt.Println("No se encontraron usuarios.")
 	return -1
@@ -95,13 +100,39 @@ func showUsers(users []models.User) int {
 
 func showChats(chats []models.Chat) int {
 	var chatSelected string
-	for index, chat := range chats {
-		fmt.Println(index, chat.Name)
+	if len(chats) > 0 {
+		for index, chat := range chats {
+			fmt.Println(index, chat.Name)
+		}
+		fmt.Println("Seleccciona el chat:")
+		fmt.Scanf("%s", &chatSelected)
+		selection, err := strconv.Atoi(chatSelected)
+		if err == nil && selection >= 0 && selection < len(chats) {
+			return selection
+		}
+		fmt.Println("Error seleccionando chat.")
+		return -1
 	}
-	fmt.Println("Seleccciona el chat:")
-	fmt.Scanf("%s", &chatSelected)
-	selection, _ := strconv.Atoi(chatSelected)
-	return selection
+	fmt.Println("No se encontraron chats.")
+	return -1
+}
+
+func doLogin(username string, password []byte) models.User {
+	var user models.User
+	passwordSlice, encrypterSlice := utils.Hash(password)
+	postURL := origin + "/login"
+	parameters := url.Values{"username": {username}, "pass": {utils.Encode64(passwordSlice)}}
+	res, err := http.PostForm(postURL, parameters)
+	if !errorchecker.Check("ERROR post", err) {
+		body, err := ioutil.ReadAll(res.Body)
+		if !errorchecker.Check("ERROR read body", err) {
+			json.Unmarshal(body, &user)
+			res.Body.Close()
+			fmt.Println(encrypterSlice)
+			//user.Decode(encrypterSlice)
+		}
+	}
+	return user
 }
 
 func registerMenu() {
@@ -112,25 +143,10 @@ func registerMenu() {
 	pass, _ := gopass.GetPasswd()
 	user := models.RegisterUser(username, pass)
 	user.Print()
-	if user.Username != "" {
-		client(user)
+	if user.Validate() {
+		currentUser = user
+		client()
 	}
-}
-
-func doLogin(username string, password []byte) models.User {
-	var user models.User
-	hashedPassword, _ := utils.Hash(password)
-	postURL := origin + "/login"
-	parameters := url.Values{"username": {username}, "pass": {utils.Encode64(hashedPassword)}}
-	res, err := http.PostForm(postURL, parameters)
-	if !errorchecker.Check("ERROR post", err) {
-		body, err := ioutil.ReadAll(res.Body)
-		if !errorchecker.Check("ERROR read body", err) {
-			json.Unmarshal(body, &user)
-			res.Body.Close()
-		}
-	}
-	return user
 }
 
 func loginMenu() {
@@ -142,13 +158,13 @@ func loginMenu() {
 	if !errorchecker.Check("ERROR contraseña", err) {
 		user := doLogin(username, password)
 		if user.Validate() {
-			client(user)
+			currentUser = user
+			client()
 		}
 	}
 }
 
 func main() {
-	fmt.Println("Iniciando cliente...")
 	var option string
 	for option != "q" {
 		mainMenu()

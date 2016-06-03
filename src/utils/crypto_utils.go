@@ -67,10 +67,9 @@ func GetKeys(key []byte) (public, private []byte) {
 // GenerateKeys function
 func GenerateKeys() *rsa.PrivateKey {
 	privKey, err := rsa.GenerateKey(crand.Reader, 2048)
-	if err != nil {
-		fmt.Println("ERROR generatekeys 72")
+	if !errorchecker.Check("ERROR generateKeys", err) {
+		privKey.Precompute() // acelera el uso con precálculo
 	}
-	privKey.Precompute() // acelera el uso con precálculo
 	return privKey
 }
 

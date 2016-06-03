@@ -2,7 +2,6 @@ package models
 
 import (
 	"bufio"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"project/client/src/chatloadenv"
+	"project/client/src/constants"
 	"project/client/src/errorchecker"
 	"project/client/src/utils"
 )
@@ -33,7 +32,7 @@ type Chat struct {
 }
 
 //StartChat starts the chat in the server
-func StartChat(sender, receiver User) {
+func StartChat(sender User, receiver PublicUser) {
 	var chat Chat
 	word := utils.RandomKey(16)
 
@@ -42,11 +41,11 @@ func StartChat(sender, receiver User) {
 	senderPubKey := utils.Decode64(sender.PubKey)
 	senderKey := utils.EncryptAES(word, senderPubKey[:32])
 
-	res, err := http.PostForm(chatloadenv.ServerOrigin+"/new_chat", url.Values{
+	res, err := http.PostForm(constants.ServerOrigin+"/new_chat", url.Values{
 		"sender":      {sender.Username},
-		"senderkey":   {base64.StdEncoding.EncodeToString(senderKey)},
+		"senderkey":   {utils.Encode64(senderKey)},
 		"receiver":    {receiver.Username},
-		"receiverkey": {base64.StdEncoding.EncodeToString(receiverKey)}})
+		"receiverkey": {utils.Encode64(receiverKey)}})
 
 	if !errorchecker.Check("ERROR post", err) {
 		body, err := ioutil.ReadAll(res.Body)
@@ -55,7 +54,6 @@ func StartChat(sender, receiver User) {
 			res.Body.Close()
 		}
 	}
-
 	OpenChat(chat, sender)
 }
 
@@ -87,11 +85,11 @@ func OpenChat(chat Chat, sender User) {
 
 	// Send chat info to the server
 	chatInfo, _ := json.Marshal(chat)
-	fmt.Fprintln(conn, base64.StdEncoding.EncodeToString(chatInfo))
+	fmt.Fprintln(conn, utils.Encode64(chatInfo))
 
 	// Send user info to the server
 	userInfo, _ := json.Marshal(sender)
-	fmt.Fprintln(conn, base64.StdEncoding.EncodeToString(userInfo))
+	fmt.Fprintln(conn, utils.Encode64(userInfo))
 
 	for keyscan.Scan() { // escaneamos la entrada
 		text := keyscan.Text()
@@ -107,7 +105,7 @@ func OpenChat(chat Chat, sender User) {
 //GetChats get the list of chats the use has
 func GetChats(user User) ([]Chat, error) {
 	var chats []Chat
-	res, err := http.PostForm(chatloadenv.ServerOrigin+"/get_chats", url.Values{"userid": {user.ID}})
+	res, err := http.PostForm(constants.ServerOrigin+"/get_chats", url.Values{"userid": {user.ID}})
 	body, err := ioutil.ReadAll(res.Body)
 	if !errorchecker.Check("ERROR in reading message", err) {
 		json.Unmarshal(body, &chats)

@@ -1,4 +1,4 @@
-package chatloadenv
+package constants
 
 // ServerOrigin url
 var ServerOrigin = "http://localhost:8080"

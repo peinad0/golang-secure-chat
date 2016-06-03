@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"project/client/src/chatloadenv"
+	"project/client/src/constants"
 	"project/client/src/errorchecker"
 	"project/client/src/utils"
 )
@@ -21,9 +21,10 @@ type User struct {
 	PrivKey  string
 }
 
-// Login given a user, it tries to return its info from DB
-func (u *User) Login() {
-	fmt.Println("a")
+// PublicUser structure
+type PublicUser struct {
+	Username string
+	PubKey   string
 }
 
 // Validate given a user u it returns whether its attributes are valid or not
@@ -34,12 +35,12 @@ func (u *User) Validate() bool {
 	return true
 }
 
-// SearchUser given a username, it performs a http post to the server in order
+// SearchUsers given a username, it performs a http post to the server in order
 // to retrieve the corresponding user or a list of users containing the given
 // username in theirs
-func SearchUser(username string) ([]User, error) {
-	var users []User
-	res, err := http.PostForm(chatloadenv.ServerOrigin+"/search_user", url.Values{"username": {username}})
+func SearchUsers(username string) ([]PublicUser, error) {
+	var users []PublicUser
+	res, err := http.PostForm(constants.ServerOrigin+"/search_user", url.Values{"username": {username}})
 	body, err := ioutil.ReadAll(res.Body)
 	if !errorchecker.Check("ERROR in reading message", err) {
 		json.Unmarshal(body, &users)
@@ -51,10 +52,10 @@ func SearchUser(username string) ([]User, error) {
 
 // GetUsers This func will return the matching user or a list of users containing
 // the given username in theirs.
-func GetUsers() []User {
+func GetUsers() []PublicUser {
 	var username string
 	fmt.Scan(&username)
-	users, _ := SearchUser(username)
+	users, _ := SearchUsers(username)
 
 	// DEBUGGING
 	for index, element := range users {
@@ -71,7 +72,7 @@ func RegisterUser(username string, password []byte) User {
 	encodedPass := utils.Encode64(passEnc)
 	encodedPub := utils.Encode64(pub)
 	encodedPriv := utils.Encode64(priv)
-	res, err := http.PostForm(chatloadenv.ServerOrigin+"/register", url.Values{"username": {username}, "pass": {encodedPass}, "pub": {encodedPub}, "priv": {encodedPriv}})
+	res, err := http.PostForm(constants.ServerOrigin+"/register", url.Values{"username": {username}, "pass": {encodedPass}, "pub": {encodedPub}, "priv": {encodedPriv}})
 	if !errorchecker.Check("ERROR post", err) {
 		body, err := ioutil.ReadAll(res.Body)
 		if !errorchecker.Check("Error read", err) {
