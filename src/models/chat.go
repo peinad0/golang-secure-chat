@@ -69,7 +69,7 @@ func OpenChat(chat Chat, sender PrivateUser) {
 	defer conn.Close() // es importante cerrar la conexión al finalizar
 
 	fmt.Println()
-	fmt.Println(chat.Name+"(", conn.RemoteAddr(), ")")
+	fmt.Println(chat.Name+"(", conn.RemoteAddr(), " - ", conn.LocalAddr(), ")")
 	fmt.Println()
 
 	names := strings.Split(chat.Name, " ")
@@ -102,15 +102,20 @@ func OpenChat(chat Chat, sender PrivateUser) {
 	userInfo, _ := json.Marshal(sender)
 	fmt.Fprintln(conn, utils.Encode64(userInfo))
 
+	go func() {
+		for netscan.Scan() { // escaneamos la conexión
+			fmt.Println(name + ": " + netscan.Text()) // mostramos mensaje desde el servidor
+		}
+	}()
+
 	for keyscan.Scan() { // escaneamos la entrada
 		text := keyscan.Text()
 		if text == "/exit" {
 			break
 		}
-		fmt.Fprintln(conn, keyscan.Text())         // enviamos la entrada al servidor
-		netscan.Scan()                             // escaneamos la conexión
-		fmt.Println("Response: " + netscan.Text()) // mostramos mensaje desde el servidor
+		fmt.Fprintln(conn, keyscan.Text()) // enviamos la entrada al servidor
 	}
+
 }
 
 //GetChats get the list of chats the use has
