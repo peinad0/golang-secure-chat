@@ -12,6 +12,7 @@ import (
 	"project/client/src/constants"
 	"project/client/src/errorchecker"
 	"project/client/src/utils"
+	"strings"
 )
 
 // Message structure
@@ -71,6 +72,15 @@ func OpenChat(chat Chat, sender PrivateUser) {
 	fmt.Println(chat.Name+"(", conn.RemoteAddr(), ")")
 	fmt.Println()
 
+	names := strings.Split(chat.Name, " ")
+	var name string // name of the other person
+
+	if names[0] == sender.Username {
+		name = names[2]
+	} else {
+		name = names[0]
+	}
+
 	keyscan := bufio.NewScanner(os.Stdin) // scanner para la entrada estándar (teclado)
 	netscan := bufio.NewScanner(conn)     // scanner para la conexión (datos desde el servidor)
 
@@ -79,7 +89,7 @@ func OpenChat(chat Chat, sender PrivateUser) {
 			if msg.Sender == sender.ID {
 				fmt.Println("Yo: " + msg.Content)
 			} else {
-				fmt.Println(sender.Username + ": " + msg.Content)
+				fmt.Println(name + ": " + msg.Content)
 			}
 		}
 	}
