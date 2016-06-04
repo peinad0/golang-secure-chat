@@ -3,11 +3,13 @@ package utils
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	crand "crypto/rand"
 	"crypto/rsa"
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"log"
 	"math/rand"
 	"project/client/src/errorchecker"
@@ -58,10 +60,9 @@ func CipherKeys(privKey *rsa.PrivateKey, key []byte) ([]byte, []byte) {
 }
 
 // GetKeys function
-func GetKeys(key []byte) (public, private []byte) {
+func GetKeys() (*rsa.PrivateKey, *rsa.PublicKey) {
 	priv := GenerateKeys()
-	private, public = CipherKeys(priv, key)
-	return
+	return priv, &priv.PublicKey
 }
 
 // GenerateKeys function
@@ -109,6 +110,31 @@ func DecryptAES(data, key []byte) (out []byte) {
 	errorchecker.Check("ERROR decrypt", err) // comprobamos el error
 	ctr := cipher.NewCTR(blk, data[:16])     // cifrador en flujo: modo CTR, usa IV
 	ctr.XORKeyStream(out, data[16:])         // desciframos (doble cifrado) los datos
+	return
+}
+
+//EncryptOAEP func
+func EncryptOAEP(publicKey *rsa.PublicKey, plainText, label []byte) (encrypted []byte) {
+	var err error
+	var md5Hash hash.Hash
+
+	md5Hash = md5.New()
+
+	if encrypted, err = rsa.EncryptOAEP(md5Hash, crand.Reader, publicKey, plainText, label); err != nil {
+		log.Fatal(err)
+	}
+	return
+}
+
+//DecryptOAEP func
+func DecryptOAEP(privateKey *rsa.PrivateKey, encrypted, label []byte) (decrypted []byte) {
+	var err error
+	var md5Hash hash.Hash
+
+	md5Hash = md5.New()
+	if decrypted, err = rsa.DecryptOAEP(md5Hash, crand.Reader, privateKey, encrypted, label); err != nil {
+		log.Fatal(err)
+	}
 	return
 }
 

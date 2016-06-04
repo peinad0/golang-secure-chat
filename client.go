@@ -16,7 +16,7 @@ import (
 )
 
 var origin = constants.ServerOrigin
-var currentUser models.User
+var currentUser models.PrivateUser
 
 func printTitle() {
 	fmt.Println()
@@ -55,8 +55,7 @@ func client() {
 			fmt.Println("¿Con quién quieres hablar?")
 			var peerUsername string
 			fmt.Scanf("%s", &peerUsername)
-
-			searchedUsers, _ := models.SearchUsers(peerUsername)
+			searchedUsers := models.SearchUsers(peerUsername)
 			selection := showUsers(searchedUsers)
 			if selection != -1 {
 				models.StartChat(currentUser, searchedUsers[selection])
@@ -80,7 +79,7 @@ func client() {
 	}
 }
 
-func showUsers(users []models.User) int {
+func showUsers(users []models.PublicUser) int {
 	var userSelected string
 	if len(users) > 0 {
 		for index, user := range users {
@@ -117,8 +116,9 @@ func showChats(chats []models.Chat) int {
 	return -1
 }
 
-func doLogin(username string, password []byte) models.User {
+func doLogin(username string, password []byte) models.PrivateUser {
 	var user models.User
+	var u models.PrivateUser
 	passwordSlice, encrypterSlice := utils.Hash(password)
 	postURL := origin + "/login"
 	parameters := url.Values{"username": {username}, "pass": {utils.Encode64(passwordSlice)}}
@@ -128,11 +128,12 @@ func doLogin(username string, password []byte) models.User {
 		if !errorchecker.Check("ERROR read body", err) {
 			json.Unmarshal(body, &user)
 			res.Body.Close()
-			fmt.Println(encrypterSlice)
-			//user.Decode(encrypterSlice)
+			if user.Validate() {
+				u = user.Parse(encrypterSlice)
+			}
 		}
 	}
-	return user
+	return u
 }
 
 func registerMenu() {
@@ -178,10 +179,3 @@ func main() {
 	}
 	bye()
 }
-
-//USING Web Sockets
-
-//ws, err := websocket.Dial(url, "", origin)
-// if err != nil {
-// 	log.Fatal(err)
-// }

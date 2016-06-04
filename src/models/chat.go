@@ -32,14 +32,15 @@ type Chat struct {
 }
 
 //StartChat starts the chat in the server
-func StartChat(sender User, receiver PublicUser) {
+func StartChat(sender PrivateUser, receiver PublicUser) {
 	var chat Chat
 	word := utils.RandomKey(16)
+	var label []byte
 
-	receiverPubKey := utils.Decode64(receiver.PubKey)
-	receiverKey := utils.EncryptAES(word, receiverPubKey[:32])
-	senderPubKey := utils.Decode64(sender.PubKey)
-	senderKey := utils.EncryptAES(word, senderPubKey[:32])
+	receiverPubKey := receiver.PubKey
+	receiverKey := utils.EncryptOAEP(receiverPubKey, word, label)
+	senderPubKey := sender.PubKey
+	senderKey := utils.EncryptOAEP(senderPubKey, word, label)
 
 	res, err := http.PostForm(constants.ServerOrigin+"/new_chat", url.Values{
 		"sender":      {sender.Username},
@@ -58,7 +59,7 @@ func StartChat(sender User, receiver PublicUser) {
 }
 
 //OpenChat opens the chat connection
-func OpenChat(chat Chat, sender User) {
+func OpenChat(chat Chat, sender PrivateUser) {
 	conn, err := net.Dial("tcp", "localhost:1337") // llamamos al servidor
 	if err != nil {
 		fmt.Println("ERROR", err)
@@ -103,7 +104,7 @@ func OpenChat(chat Chat, sender User) {
 }
 
 //GetChats get the list of chats the use has
-func GetChats(user User) ([]Chat, error) {
+func GetChats(user PrivateUser) ([]Chat, error) {
 	var chats []Chat
 	res, err := http.PostForm(constants.ServerOrigin+"/get_chats", url.Values{"userid": {user.ID}})
 	body, err := ioutil.ReadAll(res.Body)
