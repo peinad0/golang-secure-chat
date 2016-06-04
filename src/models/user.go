@@ -141,7 +141,7 @@ func (u *PrivateUser) Print() {
 	fmt.Println("################### BEGIN USER ###################")
 	fmt.Println(u.ID)
 	fmt.Println(u.Username)
-	fmt.Println(u.PrivKey)
-	fmt.Println(u.PubKey)
+	// fmt.Println(u.PrivKey)
+	// fmt.Println(u.PubKey)
 	fmt.Println("#################### END USER ####################")
 }
