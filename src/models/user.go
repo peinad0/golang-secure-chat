@@ -18,17 +18,15 @@ type User struct {
 	Username string
 	Password string
 	PubKey   string
-	PrivKey  string
 	State    string
 }
 
 // PrivateUser structure
 type PrivateUser struct {
-	ID         string
-	Username   string
-	State      State
-	PubKey     *rsa.PublicKey
-	PrivateKey *rsa.PrivateKey
+	ID       string
+	Username string
+	State    State
+	PubKey   *rsa.PublicKey
 }
 
 // PublicUser structure
@@ -36,6 +34,12 @@ type PublicUser struct {
 	ID       string
 	Username string
 	PubKey   *rsa.PublicKey
+}
+
+// State user state to be retrieved by client
+type State struct {
+	PrivateKey *rsa.PrivateKey
+	Chats      map[string]ChatInfo
 }
 
 // Validate given a user u it returns whether its attributes are valid or not
@@ -93,15 +97,10 @@ func GetUsers() []PublicUser {
 	return users
 }
 
-// State user state to be retrieved by client
-type State struct {
-	PrivateKey *rsa.PrivateKey
-	Chats      map[string]ChatPrivateInfo
-}
-
 //InitializeState func
 func InitializeState(privateKey *rsa.PrivateKey) []byte {
 	var state State
+	state.Chats = map[string]ChatInfo{}
 	state.PrivateKey = privateKey
 	byteState, err := json.Marshal(state)
 	if !errorchecker.Check("ERROR marshaling state", err) {
@@ -111,20 +110,20 @@ func InitializeState(privateKey *rsa.PrivateKey) []byte {
 }
 
 //AddChatToState func
-func (u *PrivateUser) AddChatToState(chatinfo ChatPrivateInfo) {
-	u.State.Chats[chatinfo.ID] = chatinfo
+func (u *PrivateUser) AddChatToState(chatinfo ChatInfo) {
+	u.State.Chats[chatinfo.ChatID] = chatinfo
 }
 
 // RegisterUser function
-func RegisterUser(username string, password []byte) PrivateUser {
+func RegisterUser(username string, password []byte) (PrivateUser, []byte) {
 	var user User
 	var u PrivateUser
 	passEnc, keyEnc := utils.Hash(password)
 	privateKey, publicKey := utils.GetKeys()
 
 	rawState := InitializeState(privateKey)
-	rawState = utils.Compress(rawState)
-	encryptedState := utils.EncryptAES(rawState, keyEnc)
+	rs := utils.Compress(rawState)
+	encryptedState := utils.EncryptAES(rs, keyEnc)
 	stateStr := utils.Encode64(encryptedState)
 
 	publicKeyBytes, _ := json.Marshal(publicKey)
@@ -144,7 +143,7 @@ func RegisterUser(username string, password []byte) PrivateUser {
 			}
 		}
 	}
-	return u
+	return u, keyEnc
 }
 
 // Parse func
@@ -152,23 +151,28 @@ func (u *User) Parse(encrypter []byte) PrivateUser {
 	var user PrivateUser
 	user.ID = u.ID
 	user.Username = u.Username
-	//TODO: parsear STATE
 	var state State
 	stateBytes := utils.Decode64(u.State)
 	decrypted := utils.DecryptAES(stateBytes, encrypter)
 	stateDecompressed := utils.Decompress(decrypted)
-	json.Unmarshal(stateDecompressed, &state)
-	user.PrivateKey = state.PrivateKey
-	user.State = state
-	json.Unmarshal(utils.Decompress(utils.Decode64(u.PubKey)), &user.PubKey)
+	err := json.Unmarshal(stateDecompressed, &state)
+	if errorchecker.Check("ERROR unmarshal state", err) {
+		user.State = State{}
+	} else {
+		user.State = state
+		json.Unmarshal(utils.Decompress(utils.Decode64(u.PubKey)), &user.PubKey)
+	}
 	return user
 }
 
 //UpdateChatsInfo func
-func (u *PrivateUser) UpdateChatsInfo(chats map[string]ChatPrivateInfo) {
-	u.State.Chats = map[string]ChatPrivateInfo{}
+func (u *PrivateUser) UpdateChatsInfo(chats map[string]ChatPrivateInfo, key *rsa.PrivateKey) {
+	var label []byte
 	for _, chat := range chats {
-		u.State.Chats[chat.ID] = chat
+		var info ChatInfo
+		info.ChatID = chat.ChatID
+		info.Token = utils.DecryptOAEP(key, utils.Decode64(chat.Token), label)
+		u.State.Chats[chat.ChatID] = info
 	}
 }
 
@@ -178,9 +182,18 @@ func (u *User) Print() {
 	fmt.Println(u.ID)
 	fmt.Println(u.Username)
 	fmt.Println(u.Password)
-	fmt.Println(u.PrivKey)
 	fmt.Println(u.PubKey)
 	fmt.Println("#################### END USER ####################")
+}
+
+// Print prints invoking user
+func (s *State) Print() {
+	fmt.Println("################### BEGIN State ###################")
+	for _, chat := range s.Chats {
+		fmt.Println(chat.ChatID)
+		fmt.Println(utils.Encode64(chat.Token))
+	}
+	fmt.Println("#################### END State ####################")
 }
 
 // Print prints invoking user

@@ -44,7 +44,7 @@ func bye() {
 	fmt.Println("\nVuelve pronto!!")
 }
 
-func client() {
+func client(encrypterSlice []byte) {
 	fmt.Println("Bienvenido " + currentUser.Username + "!")
 	var c string
 	for c != "q" {
@@ -58,7 +58,7 @@ func client() {
 			searchedUsers := models.SearchUsers(peerUsername)
 			selection := showUsers(searchedUsers)
 			if selection != -1 {
-				models.StartChat(currentUser, searchedUsers[selection])
+				models.StartChat(currentUser, searchedUsers[selection], encrypterSlice)
 			}
 		case c == "2":
 			fmt.Println("Listado de chats abiertos:")
@@ -116,7 +116,7 @@ func showChats(chats []models.Chat) int {
 	return -1
 }
 
-func doLogin(username string, password []byte) models.PrivateUser {
+func doLogin(username string, password []byte) (models.PrivateUser, []byte) {
 	var user models.User
 	var u models.PrivateUser
 	chats := map[string]models.ChatPrivateInfo{}
@@ -131,19 +131,19 @@ func doLogin(username string, password []byte) models.PrivateUser {
 			res.Body.Close()
 			if user.Validate() {
 				u = user.Parse(encrypterSlice)
-				postURL := origin + "/update_state"
+				postURL := origin + "/get_state"
 				parameters := url.Values{"username": {username}}
 				res, err := http.PostForm(postURL, parameters)
 				body, err := ioutil.ReadAll(res.Body)
 				if !errorchecker.Check("ERROR read body", err) {
 					body = utils.Decompress(body)
 					json.Unmarshal(body, &chats)
-					u.UpdateChatsInfo(chats)
+					u.UpdateChatsInfo(chats, u.State.PrivateKey)
 				}
 			}
 		}
 	}
-	return u
+	return u, encrypterSlice
 }
 
 func registerMenu() {
@@ -152,12 +152,12 @@ func registerMenu() {
 	fmt.Scan(&username)
 	fmt.Println("Contraseña")
 	pass, _ := gopass.GetPasswd()
-	user := models.RegisterUser(username, pass)
+	user, encrypterSlice := models.RegisterUser(username, pass)
 	user.Print()
 	if user.Validate() {
 		currentUser = user
-		currentUser.State.Chats = map[string]models.ChatPrivateInfo{}
-		client()
+		currentUser.State.Chats = map[string]models.ChatInfo{}
+		client(encrypterSlice)
 	}
 }
 
@@ -168,10 +168,10 @@ func loginMenu() {
 	fmt.Println("Contraseña")
 	password, err := gopass.GetPasswd()
 	if !errorchecker.Check("ERROR contraseña", err) {
-		user := doLogin(username, password)
+		user, encrypterSlice := doLogin(username, password)
 		if user.Validate() {
 			currentUser = user
-			client()
+			client(encrypterSlice)
 		}
 	}
 }

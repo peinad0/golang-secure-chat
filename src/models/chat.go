@@ -34,33 +34,45 @@ type Chat struct {
 
 // ChatPrivateInfo struct
 type ChatPrivateInfo struct {
-	ID    string
-	Token string
+	Username string
+	ChatID   string
+	Token    string
+}
+
+// ChatInfo struct
+type ChatInfo struct {
+	ChatID string
+	Token  []byte
 }
 
 //StartChat starts the chat in the server
-func StartChat(sender PrivateUser, receiver PublicUser) {
+func StartChat(sender PrivateUser, receiver PublicUser, encrypterKey []byte) {
 	var chat Chat
-	var chatInfo ChatPrivateInfo
+	var chatInfo ChatInfo
 	word := utils.RandomKey(16)
 	var label []byte
-	chatInfo.ID = chat.ID
-	chatInfo.Token = utils.Encode64(word)
-	sender.AddChatToState(chatInfo)
 	receiverPubKey := receiver.PubKey
 	receiverKey := utils.EncryptOAEP(receiverPubKey, word, label)
-	byteSender, _ := json.Marshal(sender.State)
-	stateStr := utils.Encode64(byteSender)
+	fmt.Println(receiverKey)
 	res, err := http.PostForm(constants.ServerOrigin+"/new_chat", url.Values{
 		"sender":      {sender.Username},
-		"senderState": {stateStr},
 		"receiver":    {receiver.Username},
 		"receiverkey": {utils.Encode64(receiverKey)}})
 	if !errorchecker.Check("ERROR post", err) {
 		body, err := ioutil.ReadAll(res.Body)
 		if !errorchecker.Check("ERROR read body", err) {
 			json.Unmarshal(body, &chat)
+			chatInfo.Token = word
+			chatInfo.ChatID = chat.ID
+			sender.AddChatToState(chatInfo)
+			byteSender, _ := json.Marshal(sender.State)
+			compressed := utils.Compress(byteSender)
+			encrypted := utils.EncryptAES(compressed, encrypterKey)
+			stateStr := utils.Encode64(encrypted)
 			res.Body.Close()
+			http.PostForm(constants.ServerOrigin+"/update_state", url.Values{
+				"username": {sender.Username},
+				"state":    {stateStr}})
 		}
 	}
 	OpenChat(chat, sender)
@@ -78,7 +90,8 @@ func OpenChat(chat Chat, sender PrivateUser) {
 	fmt.Println()
 	fmt.Println(chat.Name+"(", conn.RemoteAddr(), " - ", conn.LocalAddr(), ")")
 	fmt.Println()
-
+	fmt.Println("chatid = " + chat.ID)
+	fmt.Println(utils.Encode64(sender.State.Chats[chat.ID].Token))
 	names := strings.Split(chat.Name, " ")
 	var name string // name of the other person
 
