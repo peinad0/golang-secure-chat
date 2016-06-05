@@ -32,23 +32,30 @@ type Chat struct {
 	Type       string
 }
 
+// ChatPrivateInfo struct
+type ChatPrivateInfo struct {
+	ID    string
+	Token string
+}
+
 //StartChat starts the chat in the server
 func StartChat(sender PrivateUser, receiver PublicUser) {
 	var chat Chat
+	var chatInfo ChatPrivateInfo
 	word := utils.RandomKey(16)
 	var label []byte
-
+	chatInfo.ID = chat.ID
+	chatInfo.Token = utils.Encode64(word)
+	sender.AddChatToState(chatInfo)
 	receiverPubKey := receiver.PubKey
 	receiverKey := utils.EncryptOAEP(receiverPubKey, word, label)
-	senderPubKey := sender.PubKey
-	senderKey := utils.EncryptOAEP(senderPubKey, word, label)
-
+	byteSender, _ := json.Marshal(sender.State)
+	stateStr := utils.Encode64(byteSender)
 	res, err := http.PostForm(constants.ServerOrigin+"/new_chat", url.Values{
 		"sender":      {sender.Username},
-		"senderkey":   {utils.Encode64(senderKey)},
+		"senderState": {stateStr},
 		"receiver":    {receiver.Username},
 		"receiverkey": {utils.Encode64(receiverKey)}})
-
 	if !errorchecker.Check("ERROR post", err) {
 		body, err := ioutil.ReadAll(res.Body)
 		if !errorchecker.Check("ERROR read body", err) {

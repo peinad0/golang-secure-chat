@@ -119,6 +119,7 @@ func showChats(chats []models.Chat) int {
 func doLogin(username string, password []byte) models.PrivateUser {
 	var user models.User
 	var u models.PrivateUser
+	chats := map[string]models.ChatPrivateInfo{}
 	passwordSlice, encrypterSlice := utils.Hash(password)
 	postURL := origin + "/login"
 	parameters := url.Values{"username": {username}, "pass": {utils.Encode64(passwordSlice)}}
@@ -130,6 +131,15 @@ func doLogin(username string, password []byte) models.PrivateUser {
 			res.Body.Close()
 			if user.Validate() {
 				u = user.Parse(encrypterSlice)
+				postURL := origin + "/update_state"
+				parameters := url.Values{"username": {username}}
+				res, err := http.PostForm(postURL, parameters)
+				body, err := ioutil.ReadAll(res.Body)
+				if !errorchecker.Check("ERROR read body", err) {
+					body = utils.Decompress(body)
+					json.Unmarshal(body, &chats)
+					u.UpdateChatsInfo(chats)
+				}
 			}
 		}
 	}
@@ -146,6 +156,7 @@ func registerMenu() {
 	user.Print()
 	if user.Validate() {
 		currentUser = user
+		currentUser.State.Chats = map[string]models.ChatPrivateInfo{}
 		client()
 	}
 }

@@ -19,14 +19,16 @@ type User struct {
 	Password string
 	PubKey   string
 	PrivKey  string
+	State    string
 }
 
 // PrivateUser structure
 type PrivateUser struct {
-	ID       string
-	Username string
-	PubKey   *rsa.PublicKey
-	PrivKey  *rsa.PrivateKey
+	ID         string
+	Username   string
+	State      State
+	PubKey     *rsa.PublicKey
+	PrivateKey *rsa.PrivateKey
 }
 
 // PublicUser structure
@@ -91,21 +93,51 @@ func GetUsers() []PublicUser {
 	return users
 }
 
+// State user state to be retrieved by client
+type State struct {
+	PrivateKey *rsa.PrivateKey
+	Chats      map[string]ChatPrivateInfo
+}
+
+//InitializeState func
+func InitializeState(privateKey *rsa.PrivateKey) []byte {
+	var state State
+	state.PrivateKey = privateKey
+	byteState, err := json.Marshal(state)
+	if !errorchecker.Check("ERROR marshaling state", err) {
+		return byteState
+	}
+	return []byte{}
+}
+
+//AddChatToState func
+func (u *PrivateUser) AddChatToState(chatinfo ChatPrivateInfo) {
+	u.State.Chats[chatinfo.ID] = chatinfo
+}
+
 // RegisterUser function
 func RegisterUser(username string, password []byte) PrivateUser {
 	var user User
 	var u PrivateUser
 	passEnc, keyEnc := utils.Hash(password)
-	rawPriv, _ := utils.GetKeys()
-	priv, pub := utils.CipherKeys(rawPriv, keyEnc)
-	encodedPass := utils.Encode64(passEnc)
+	privateKey, publicKey := utils.GetKeys()
+
+	rawState := InitializeState(privateKey)
+	rawState = utils.Compress(rawState)
+	encryptedState := utils.EncryptAES(rawState, keyEnc)
+	stateStr := utils.Encode64(encryptedState)
+
+	publicKeyBytes, _ := json.Marshal(publicKey)
+	pub := utils.Compress(publicKeyBytes)
 	encodedPub := utils.Encode64(pub)
-	encodedPriv := utils.Encode64(priv)
-	res, err := http.PostForm(constants.ServerOrigin+"/register", url.Values{"username": {username}, "pass": {encodedPass}, "pub": {encodedPub}, "priv": {encodedPriv}})
+	encodedPass := utils.Encode64(passEnc)
+
+	res, err := http.PostForm(constants.ServerOrigin+"/register", url.Values{"username": {username}, "pass": {encodedPass}, "pub": {encodedPub}, "state": {stateStr}})
 	if !errorchecker.Check("ERROR post", err) {
 		body, err := ioutil.ReadAll(res.Body)
 		if !errorchecker.Check("Error read", err) {
 			if string(body[:len(body)]) != "{error: 'user exists'}" {
+				//check user values
 				json.Unmarshal(body, &user)
 				res.Body.Close()
 				u = user.Parse(keyEnc)
@@ -120,9 +152,24 @@ func (u *User) Parse(encrypter []byte) PrivateUser {
 	var user PrivateUser
 	user.ID = u.ID
 	user.Username = u.Username
-	json.Unmarshal(utils.Decompress(utils.DecryptAES(utils.Decode64(u.PrivKey), encrypter)), &user.PrivKey)
+	//TODO: parsear STATE
+	var state State
+	stateBytes := utils.Decode64(u.State)
+	decrypted := utils.DecryptAES(stateBytes, encrypter)
+	stateDecompressed := utils.Decompress(decrypted)
+	json.Unmarshal(stateDecompressed, &state)
+	user.PrivateKey = state.PrivateKey
+	user.State = state
 	json.Unmarshal(utils.Decompress(utils.Decode64(u.PubKey)), &user.PubKey)
 	return user
+}
+
+//UpdateChatsInfo func
+func (u *PrivateUser) UpdateChatsInfo(chats map[string]ChatPrivateInfo) {
+	u.State.Chats = map[string]ChatPrivateInfo{}
+	for _, chat := range chats {
+		u.State.Chats[chat.ID] = chat
+	}
 }
 
 // Print prints invoking user

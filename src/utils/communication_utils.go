@@ -27,10 +27,10 @@ func Decompress(data []byte) []byte {
 
 	r, err := zlib.NewReader(bytes.NewReader(data)) // lector descomprime al leer
 
-	errorchecker.Check("ERROR comprimiendo", err) // comprobamos el error
-	io.Copy(&b, r)                                // copiamos del descompresor (r) al buffer (b)
-	r.Close()                                     // cerramos el lector (buffering)
-	return b.Bytes()                              // devolvemos los datos descomprimidos
+	errorchecker.Check("ERROR descomprimiendo", err) // comprobamos el error
+	io.Copy(&b, r)                                   // copiamos del descompresor (r) al buffer (b)
+	r.Close()                                        // cerramos el lector (buffering)
+	return b.Bytes()                                 // devolvemos los datos descomprimidos
 }
 
 // Encode64 función para codificar de []bytes a string (Base64)
