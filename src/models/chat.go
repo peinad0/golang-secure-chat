@@ -107,10 +107,11 @@ func OpenChat(chat Chat, sender PrivateUser) {
 
 	if len(chat.Messages) > 0 {
 		for _, msg := range chat.Messages {
+			descifrado := utils.DecryptAES(utils.Decode64(msg.Content), key)
 			if msg.Sender == sender.ID {
-				fmt.Println("Yo: " + msg.Content)
+				fmt.Printf("Yo: %s\n", descifrado)
 			} else {
-				fmt.Println(name + ": " + msg.Content)
+				fmt.Printf("%s: %s\n", name, descifrado)
 			}
 		}
 	}
