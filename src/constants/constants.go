@@ -1,7 +1,7 @@
 package constants
 
 // ServerOrigin url
-var ServerOrigin = "http://localhost:8080"
+var ServerOrigin = "https://localhost:8080"
 
 //var ServerOrigin = "http://go-secure-chat.herokuapp.com"
 

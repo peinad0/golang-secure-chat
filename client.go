@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -20,6 +21,12 @@ import (
 
 var origin = constants.ServerOrigin
 var currentUser models.PrivateUser
+
+var tr = &http.Transport{
+	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+}
+
+var https = &http.Client{Transport: tr}
 
 func printTitle() {
 	fmt.Println()
@@ -76,7 +83,7 @@ func client(encrypterSlice []byte) {
 
 	postURL := origin + "/logout"
 	parameters := url.Values{"username": {currentUser.Username}}
-	_, err := http.PostForm(postURL, parameters)
+	_, err := https.PostForm(postURL, parameters)
 	if !errorchecker.Check("ERROR logout", err) {
 		fmt.Println("Logout successful")
 	}
@@ -126,7 +133,7 @@ func doLogin(username string, password []byte) (models.PrivateUser, []byte) {
 	passwordSlice, encrypterSlice := utils.Hash(password)
 	postURL := origin + "/login"
 	parameters := url.Values{"username": {username}, "pass": {utils.Encode64(passwordSlice)}}
-	res, err := http.PostForm(postURL, parameters)
+	res, err := https.PostForm(postURL, parameters)
 	if !errorchecker.Check("ERROR post", err) {
 		body, err := ioutil.ReadAll(res.Body)
 		if !errorchecker.Check("ERROR read body", err) {
@@ -136,7 +143,7 @@ func doLogin(username string, password []byte) (models.PrivateUser, []byte) {
 				u = user.Parse(encrypterSlice)
 				postURL := origin + "/get_state"
 				parameters := url.Values{"username": {username}}
-				res, err := http.PostForm(postURL, parameters)
+				res, err := https.PostForm(postURL, parameters)
 				body, err := ioutil.ReadAll(res.Body)
 				if !errorchecker.Check("ERROR read body", err) {
 					body = utils.Decompress(body)
@@ -185,7 +192,7 @@ func loginMenu() {
 func cleanup() {
 	postURL := origin + "/logout"
 	parameters := url.Values{"username": {currentUser.Username}}
-	_, err := http.PostForm(postURL, parameters)
+	_, err := https.PostForm(postURL, parameters)
 	if !errorchecker.Check("ERROR logout", err) {
 		fmt.Println(" -> Logout successful")
 	}

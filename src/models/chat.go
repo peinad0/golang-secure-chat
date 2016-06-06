@@ -2,6 +2,7 @@ package models
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -45,6 +46,12 @@ type ChatInfo struct {
 	Token  []byte
 }
 
+var tr = &http.Transport{
+	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+}
+
+var https = &http.Client{Transport: tr}
+
 //StartChat starts the chat in the server
 func StartChat(sender PrivateUser, receiver PublicUser, encrypterKey []byte) {
 	var chat Chat
@@ -54,7 +61,7 @@ func StartChat(sender PrivateUser, receiver PublicUser, encrypterKey []byte) {
 	receiverPubKey := receiver.PubKey
 	receiverKey := utils.EncryptOAEP(receiverPubKey, word, label)
 	fmt.Println(receiverKey)
-	res, err := http.PostForm(constants.ServerOrigin+"/new_chat", url.Values{
+	res, err := https.PostForm(constants.ServerOrigin+"/new_chat", url.Values{
 		"sender":      {sender.Username},
 		"receiver":    {receiver.Username},
 		"receiverkey": {utils.Encode64(receiverKey)}})
@@ -70,7 +77,7 @@ func StartChat(sender PrivateUser, receiver PublicUser, encrypterKey []byte) {
 			encrypted := utils.EncryptAES(compressed, encrypterKey)
 			stateStr := utils.Encode64(encrypted)
 			res.Body.Close()
-			http.PostForm(constants.ServerOrigin+"/update_state", url.Values{
+			https.PostForm(constants.ServerOrigin+"/update_state", url.Values{
 				"username": {sender.Username},
 				"state":    {stateStr}})
 		}
@@ -151,7 +158,7 @@ func GetChats(user PrivateUser) ([]Chat, error) {
 	chatsInfo := map[string]ChatPrivateInfo{}
 	postURL := constants.ServerOrigin + "/get_state"
 	parameters := url.Values{"username": {user.Username}}
-	res, err := http.PostForm(postURL, parameters)
+	res, err := https.PostForm(postURL, parameters)
 	body, err := ioutil.ReadAll(res.Body)
 	if !errorchecker.Check("ERROR read body", err) {
 		body = utils.Decompress(body)
@@ -160,7 +167,7 @@ func GetChats(user PrivateUser) ([]Chat, error) {
 	}
 
 	var chats []Chat
-	res, err = http.PostForm(constants.ServerOrigin+"/get_chats", url.Values{"userid": {user.ID}})
+	res, err = https.PostForm(constants.ServerOrigin+"/get_chats", url.Values{"userid": {user.ID}})
 	body, err = ioutil.ReadAll(res.Body)
 	if !errorchecker.Check("ERROR in reading message", err) {
 		json.Unmarshal(body, &chats)

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"project/client/src/constants"
 	"project/client/src/errorchecker"
@@ -64,7 +63,7 @@ func (u *PrivateUser) Validate() bool {
 func SearchUsers(username string) []PublicUser {
 	var users []User
 	var publicUsers []PublicUser
-	res, err := http.PostForm(constants.ServerOrigin+"/search_user", url.Values{"username": {username}})
+	res, err := https.PostForm(constants.ServerOrigin+"/search_user", url.Values{"username": {username}})
 	body, err := ioutil.ReadAll(res.Body)
 	if !errorchecker.Check("ERROR in reading message", err) {
 		json.Unmarshal(body, &users)
@@ -131,7 +130,7 @@ func RegisterUser(username string, password []byte) (PrivateUser, []byte) {
 	encodedPub := utils.Encode64(pub)
 	encodedPass := utils.Encode64(passEnc)
 
-	res, err := http.PostForm(constants.ServerOrigin+"/register", url.Values{"username": {username}, "pass": {encodedPass}, "pub": {encodedPub}, "state": {stateStr}})
+	res, err := https.PostForm(constants.ServerOrigin+"/register", url.Values{"username": {username}, "pass": {encodedPass}, "pub": {encodedPub}, "state": {stateStr}})
 	if !errorchecker.Check("ERROR post", err) {
 		body, err := ioutil.ReadAll(res.Body)
 		if !errorchecker.Check("Error read", err) {
