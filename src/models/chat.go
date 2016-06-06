@@ -90,8 +90,9 @@ func OpenChat(chat Chat, sender PrivateUser) {
 	fmt.Println()
 	fmt.Println(chat.Name+"(", conn.RemoteAddr(), " - ", conn.LocalAddr(), ")")
 	fmt.Println()
-	fmt.Println("chatid = " + chat.ID)
-	fmt.Println(utils.Encode64(sender.State.Chats[chat.ID].Token))
+
+	key := sender.State.Chats[chat.ID].Token
+
 	names := strings.Split(chat.Name, " ")
 	var name string // name of the other person
 
@@ -124,7 +125,10 @@ func OpenChat(chat Chat, sender PrivateUser) {
 
 	go func() {
 		for netscan.Scan() { // escaneamos la conexión
-			fmt.Println(name + ": " + netscan.Text()) // mostramos mensaje desde el servidor
+			text := netscan.Text()
+			descifrado := utils.DecryptAES(utils.Decode64(text), key)
+
+			fmt.Printf("%s: %s\n", name, descifrado) // mostramos mensaje desde el servidor
 		}
 	}()
 
@@ -133,7 +137,10 @@ func OpenChat(chat Chat, sender PrivateUser) {
 		if text == "/exit" {
 			break
 		}
-		fmt.Fprintln(conn, keyscan.Text()) // enviamos la entrada al servidor
+
+		cifrado := utils.EncryptAES([]byte(text), key)
+
+		fmt.Fprintln(conn, utils.Encode64(cifrado)) // enviamos la entrada al servidor
 	}
 
 }
