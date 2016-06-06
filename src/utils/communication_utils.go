@@ -40,9 +40,11 @@ func Encode64(data []byte) string {
 
 // Decode64 función para decodificar de string a []bytes (Base64)
 func Decode64(s string) []byte {
-	b, err := base64.StdEncoding.DecodeString(s)   // recupera el formato original
-	errorchecker.Check("ERROR decodificando", err) // comprobamos el error
-	return b                                       // devolvemos los datos originales
+	b, err := base64.StdEncoding.DecodeString(s) // recupera el formato original
+	if errorchecker.Check("ERROR decodificando", err) {
+		fmt.Println(s)
+	} // comprobamos el error
+	return b // devolvemos los datos originales
 }
 
 func send(ws *websocket.Conn, m string) {

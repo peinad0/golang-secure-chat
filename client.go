@@ -6,11 +6,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"project/client/src/constants"
 	"project/client/src/errorchecker"
 	"project/client/src/models"
 	"project/client/src/utils"
 	"strconv"
+	"syscall"
 
 	"github.com/howeyc/gopass"
 )
@@ -140,7 +143,10 @@ func doLogin(username string, password []byte) (models.PrivateUser, []byte) {
 					json.Unmarshal(body, &chats)
 					u.UpdateChatsInfo(chats, u.State.PrivateKey)
 				}
+			} else {
+				fmt.Println("Error iniciando sesión, credenciales incorrectas o usuario ya logueado")
 			}
+
 		}
 	}
 	return u, encrypterSlice
@@ -176,8 +182,25 @@ func loginMenu() {
 	}
 }
 
+func cleanup() {
+	postURL := origin + "/logout"
+	parameters := url.Values{"username": {currentUser.Username}}
+	_, err := http.PostForm(postURL, parameters)
+	if !errorchecker.Check("ERROR logout", err) {
+		fmt.Println(" -> Logout successful")
+	}
+}
+
 func main() {
 	var option string
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, syscall.SIGTERM)
+	go func() {
+		<-c
+		cleanup()
+		os.Exit(1)
+	}()
 	for option != "q" {
 		mainMenu()
 		fmt.Scanf("%s", &option)

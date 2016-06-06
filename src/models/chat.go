@@ -49,7 +49,7 @@ type ChatInfo struct {
 func StartChat(sender PrivateUser, receiver PublicUser, encrypterKey []byte) {
 	var chat Chat
 	var chatInfo ChatInfo
-	word := utils.RandomKey(16)
+	word := utils.RandomKey(32)
 	var label []byte
 	receiverPubKey := receiver.PubKey
 	receiverKey := utils.EncryptOAEP(receiverPubKey, word, label)
@@ -90,12 +90,12 @@ func OpenChat(chat Chat, sender PrivateUser) {
 	fmt.Println()
 	fmt.Println(chat.Name+"(", conn.RemoteAddr(), " - ", conn.LocalAddr(), ")")
 	fmt.Println()
-
 	key := sender.State.Chats[chat.ID].Token
 
 	names := strings.Split(chat.Name, " ")
 	var name string // name of the other person
-
+	token := sender.State.Chats[chat.ID].Token
+	fmt.Println(utils.Encode64(token))
 	if names[0] == sender.Username {
 		name = names[2]
 	} else {
@@ -134,8 +134,8 @@ func OpenChat(chat Chat, sender PrivateUser) {
 	}()
 
 	for keyscan.Scan() { // escaneamos la entrada
-		text := keyscan.Text()
-		if text == "/exit" {
+		text := keyscan.Bytes()
+		if keyscan.Text() == "/exit" {
 			break
 		}
 
