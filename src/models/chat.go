@@ -148,9 +148,20 @@ func OpenChat(chat Chat, sender PrivateUser) {
 
 //GetChats get the list of chats the use has
 func GetChats(user PrivateUser) ([]Chat, error) {
-	var chats []Chat
-	res, err := http.PostForm(constants.ServerOrigin+"/get_chats", url.Values{"userid": {user.ID}})
+	chatsInfo := map[string]ChatPrivateInfo{}
+	postURL := constants.ServerOrigin + "/get_state"
+	parameters := url.Values{"username": {user.Username}}
+	res, err := http.PostForm(postURL, parameters)
 	body, err := ioutil.ReadAll(res.Body)
+	if !errorchecker.Check("ERROR read body", err) {
+		body = utils.Decompress(body)
+		json.Unmarshal(body, &chatsInfo)
+		user.UpdateChatsInfo(chatsInfo, user.State.PrivateKey)
+	}
+
+	var chats []Chat
+	res, err = http.PostForm(constants.ServerOrigin+"/get_chats", url.Values{"userid": {user.ID}})
+	body, err = ioutil.ReadAll(res.Body)
 	if !errorchecker.Check("ERROR in reading message", err) {
 		json.Unmarshal(body, &chats)
 		res.Body.Close()
