@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -121,7 +120,9 @@ func GetChatUsernames(components []string) map[string]string {
 
 //OpenChat opens the chat connection
 func OpenChat(chat Chat, sender PrivateUser) {
-	conn, err := net.Dial("tcp", "localhost:1337") // llamamos al servidor
+	conn, err := tls.Dial("tcp", "localhost:1337", &tls.Config{
+		InsecureSkipVerify: true,
+	})
 	if err != nil {
 		fmt.Println("ERROR", err)
 	}
