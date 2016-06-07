@@ -87,12 +87,7 @@ func client(encrypterSlice []byte) {
 		}
 	}
 
-	postURL := origin + "/logout"
-	parameters := url.Values{"username": {currentUser.Username}}
-	_, err := https.PostForm(postURL, parameters)
-	if !errorchecker.Check("ERROR logout", err) {
-		fmt.Println("Logout successful")
-	}
+	cleanup()
 }
 func parseSelection(selection string) ([]int, error) {
 	var userIDS []int
