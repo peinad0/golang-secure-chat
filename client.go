@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"project/client/src/models"
 	"project/client/src/utils"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/howeyc/gopass"
@@ -66,9 +68,13 @@ func client(encrypterSlice []byte) {
 			var peerUsername string
 			fmt.Scanf("%s", &peerUsername)
 			searchedUsers := models.SearchUsers(peerUsername)
-			selection := showUsers(searchedUsers)
-			if selection != -1 {
-				models.StartChat(currentUser, searchedUsers[selection], encrypterSlice)
+			userIDS, err := showUsers(searchedUsers)
+			var users []models.PublicUser
+			if !errorchecker.Check("ERROR parseando usuarios", err) {
+				for _, id := range userIDS {
+					users = append(users, searchedUsers[id])
+				}
+				models.StartChat(currentUser, users, encrypterSlice)
 			}
 		case c == "2":
 			fmt.Println("Listado de chats abiertos:")
@@ -81,30 +87,39 @@ func client(encrypterSlice []byte) {
 		}
 	}
 
-	postURL := origin + "/logout"
-	parameters := url.Values{"username": {currentUser.Username}}
-	_, err := https.PostForm(postURL, parameters)
-	if !errorchecker.Check("ERROR logout", err) {
-		fmt.Println("Logout successful")
+	cleanup()
+}
+func parseSelection(selection string) ([]int, error) {
+	var userIDS []int
+	stringUsers := strings.Split(selection, ",")
+	for _, s := range stringUsers {
+		userID, err := strconv.Atoi(s)
+		if !errorchecker.Check("Error parseando grupos", err) {
+			userIDS = append(userIDS, userID)
+		} else {
+			return nil, errors.New("Error parseando usuario")
+		}
 	}
+	fmt.Println(userIDS)
+	return userIDS, nil
 }
 
-func showUsers(users []models.PublicUser) int {
-	var userSelected string
+func showUsers(users []models.PublicUser) ([]int, error) {
+	var usersSelected string
 	if len(users) > 0 {
 		for index, user := range users {
 			fmt.Println(index, user.Username)
 		}
-		fmt.Scanf("%s", &userSelected)
-		selection, err := strconv.Atoi(userSelected)
-		if err == nil && selection >= 0 && selection < len(users) {
-			return selection
+		fmt.Scanf("%s", &usersSelected)
+		users, err := parseSelection(usersSelected)
+		if err == nil {
+			return users, nil
 		}
 		fmt.Println("Error seleccionando usuario.")
-		return -1
+		return nil, errors.New("Error seleccionando usuario")
 	}
 	fmt.Println("No se encontraron usuarios.")
-	return -1
+	return nil, errors.New("No se encontraron usuarios.")
 }
 
 func showChats(chats []models.Chat) int {
@@ -166,7 +181,6 @@ func registerMenu() {
 	fmt.Println("Contraseña")
 	pass, _ := gopass.GetPasswd()
 	user, encrypterSlice := models.RegisterUser(username, pass)
-	user.Print()
 	if user.Validate() {
 		currentUser = user
 		currentUser.State.Chats = map[string]models.ChatInfo{}

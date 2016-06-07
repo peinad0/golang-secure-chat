@@ -13,7 +13,6 @@ import (
 	"project/client/src/constants"
 	"project/client/src/errorchecker"
 	"project/client/src/utils"
-	"strings"
 )
 
 // Message structure
@@ -40,6 +39,12 @@ type ChatPrivateInfo struct {
 	Token    string
 }
 
+// ChatToken struct
+type ChatToken struct {
+	Username string
+	Token    string
+}
+
 // ChatInfo struct
 type ChatInfo struct {
 	ChatID string
@@ -53,18 +58,33 @@ var tr = &http.Transport{
 var https = &http.Client{Transport: tr}
 
 //StartChat starts the chat in the server
-func StartChat(sender PrivateUser, receiver PublicUser, encrypterKey []byte) {
+func StartChat(sender PrivateUser, receivers []PublicUser, encrypterKey []byte) {
 	var chat Chat
+	var tokens []ChatToken
+	var token ChatToken
 	var chatInfo ChatInfo
 	word := utils.RandomKey(32)
 	var label []byte
-	receiverPubKey := receiver.PubKey
-	receiverKey := utils.EncryptOAEP(receiverPubKey, word, label)
-	fmt.Println(receiverKey)
+
+	for _, receiver := range receivers {
+		receiverKey := utils.EncryptOAEP(receiver.PubKey, word, label)
+		token.Token = utils.Encode64(receiverKey)
+		token.Username = receiver.Username
+		tokens = append(tokens, token)
+	}
+	marshaledTokens, _ := json.Marshal(tokens)
+	strTokens := utils.Encode64(marshaledTokens)
+	var chatType string
+	if len(receivers) == 1 {
+		chatType = "individual"
+	} else {
+		chatType = "group"
+	}
 	res, err := https.PostForm(constants.ServerOrigin+"/new_chat", url.Values{
-		"sender":      {sender.Username},
-		"receiver":    {receiver.Username},
-		"receiverkey": {utils.Encode64(receiverKey)}})
+		"sender": {sender.Username},
+		"type":   {chatType},
+		"tokens": {strTokens}})
+
 	if !errorchecker.Check("ERROR post", err) {
 		body, err := ioutil.ReadAll(res.Body)
 		if !errorchecker.Check("ERROR read body", err) {
@@ -85,6 +105,20 @@ func StartChat(sender PrivateUser, receiver PublicUser, encrypterKey []byte) {
 	OpenChat(chat, sender)
 }
 
+//GetChatUsernames func
+func GetChatUsernames(components []string) map[string]string {
+	var usernames map[string]string
+	postURL := constants.ServerOrigin + "/get_chat_names"
+	bytesComponents, _ := json.Marshal(components)
+	parameters := url.Values{"users": {utils.Encode64(bytesComponents)}}
+	res, err := https.PostForm(postURL, parameters)
+	body, err := ioutil.ReadAll(res.Body)
+	if !errorchecker.Check("ERROR read body", err) {
+		json.Unmarshal(body, &usernames)
+	}
+	return usernames
+}
+
 //OpenChat opens the chat connection
 func OpenChat(chat Chat, sender PrivateUser) {
 	conn, err := net.Dial("tcp", "localhost:1337") // llamamos al servidor
@@ -99,15 +133,7 @@ func OpenChat(chat Chat, sender PrivateUser) {
 	fmt.Println()
 	key := sender.State.Chats[chat.ID].Token
 
-	names := strings.Split(chat.Name, " ")
-	var name string // name of the other person
-	token := sender.State.Chats[chat.ID].Token
-	fmt.Println(utils.Encode64(token))
-	if names[0] == sender.Username {
-		name = names[2]
-	} else {
-		name = names[0]
-	}
+	//names := GetChatUsernames(chat.Components)
 
 	keyscan := bufio.NewScanner(os.Stdin) // scanner para la entrada estándar (teclado)
 	netscan := bufio.NewScanner(conn)     // scanner para la conexión (datos desde el servidor)
@@ -115,11 +141,7 @@ func OpenChat(chat Chat, sender PrivateUser) {
 	if len(chat.Messages) > 0 {
 		for _, msg := range chat.Messages {
 			descifrado := utils.DecryptAES(utils.Decode64(msg.Content), key)
-			if msg.Sender == sender.ID {
-				fmt.Printf("Yo: %s\n", descifrado)
-			} else {
-				fmt.Printf("%s: %s\n", name, descifrado)
-			}
+			fmt.Printf("%s\n", descifrado)
 		}
 	}
 
@@ -136,12 +158,12 @@ func OpenChat(chat Chat, sender PrivateUser) {
 			text := netscan.Text()
 			descifrado := utils.DecryptAES(utils.Decode64(text), key)
 
-			fmt.Printf("%s: %s\n", name, descifrado) // mostramos mensaje desde el servidor
+			fmt.Printf("%s\n", descifrado) // mostramos mensaje desde el servidor
 		}
 	}()
 
 	for keyscan.Scan() { // escaneamos la entrada
-		text := keyscan.Bytes()
+		text := sender.Username + ": " + keyscan.Text()
 		if keyscan.Text() == "/exit" {
 			break
 		}
