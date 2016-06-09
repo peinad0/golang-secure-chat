@@ -116,6 +116,7 @@ func (u *PrivateUser) AddChatToState(chatinfo ChatInfo) {
 	u.UpdateState()
 }
 
+//AddUsersToContacts func
 func (u *PrivateUser) AddUsersToContacts(users []PublicUser) {
 	for _, user := range users {
 		u.State.Contacts = append(u.State.Contacts, user)
@@ -123,6 +124,7 @@ func (u *PrivateUser) AddUsersToContacts(users []PublicUser) {
 	u.UpdateState()
 }
 
+//UpdateState finc
 func (u *PrivateUser) UpdateState() {
 	byteSender, _ := json.Marshal(u.State)
 	compressed := utils.Compress(byteSender)

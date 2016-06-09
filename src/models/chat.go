@@ -9,18 +9,25 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"project/client/src/constants"
 	"project/client/src/errorchecker"
 	"project/client/src/utils"
-	"strings"
+	"time"
 )
 
 // Message structure
 type Message struct {
-	ID      string
-	Content string
+	Content []byte
+	Type    MessageType
 	Date    string
 	Sender  string
+}
+
+//MessageType struct
+type MessageType struct {
+	Type string
+	Name string
 }
 
 //Chat structure
@@ -113,6 +120,41 @@ func GetChatUsernames(components []string) map[string]string {
 	return usernames
 }
 
+func downloadFile(message Message, key []byte) error {
+	descifrado := utils.DecryptAES(message.Content, key)
+	filename := message.Type.Name
+	wd, err := os.Getwd()
+	errorchecker.Check("Error getting working directory", err)
+	err = ioutil.WriteFile(wd+"/Downloads/"+filename, descifrado, 0644)
+	return err
+}
+
+//Print func
+func (m *Message) Print() {
+	fmt.Println("********** MESSAGE **********")
+	fmt.Println(m.Sender)
+	fmt.Println(m.Date)
+	fmt.Println(m.Type.Type)
+	fmt.Println("*****************************")
+
+}
+
+func handleMessage(msg Message, key []byte) {
+	//msg.Print()
+	switch msg.Type.Type {
+	case "text":
+		descifrado := utils.DecryptAES(msg.Content, key)
+		fmt.Printf("[%s] %s: %s\n", msg.Date, msg.Sender, descifrado)
+		break
+	case "file":
+		err := downloadFile(msg, key)
+		if !errorchecker.Check("Error descargando archivo", err) {
+			fmt.Printf("[%s] %s: Archivo recibido: %s\n", msg.Date, msg.Sender, msg.Type.Name)
+		}
+		break
+	}
+}
+
 //OpenChat opens the chat connection
 func OpenChat(chat Chat, sender PrivateUser) {
 	conn, err := tls.Dial("tcp", "localhost:1337", &tls.Config{
@@ -136,9 +178,7 @@ func OpenChat(chat Chat, sender PrivateUser) {
 
 	if len(chat.Messages) > 0 {
 		for _, msg := range chat.Messages {
-			fmt.Println("key", key)
-			descifrado := utils.DecryptAES(utils.Decode64(msg.Content), key)
-			fmt.Printf("%s\n", descifrado)
+			handleMessage(msg, key)
 		}
 	}
 
@@ -151,45 +191,67 @@ func OpenChat(chat Chat, sender PrivateUser) {
 	fmt.Fprintln(conn, utils.Encode64(userInfo))
 
 	go func() {
+		var msg Message
 		for netscan.Scan() { // escaneamos la conexión
-			text := netscan.Text()
-			descifrado := utils.DecryptAES(utils.Decode64(text), key)
-			filename := "file.txt"
-			wd, err := os.Getwd()
-			if err != nil {
-				fmt.Println("error wd", err)
-			}
-			err = ioutil.WriteFile(wd+"/Downloads/"+filename, descifrado, 0644)
-
-			if !errorchecker.Check("ERROR WriteFile", err) {
-				fmt.Println("Descargado nuevo archivo en Descargas:", filename) // mostramos mensaje desde el servidor
-			}
-
-			fmt.Printf("%s\n", descifrado) // mostramos mensaje desde el servidor
+			data := netscan.Text()
+			receivedData := utils.Decode64(data)
+			json.Unmarshal(receivedData, &msg)
+			handleMessage(msg, key)
 		}
 	}()
 
+	var canSendMessage bool
+	var exit bool
+	var t MessageType
+	var message Message
+	message.Sender = sender.Username
+
 	for keyscan.Scan() { // escaneamos la entrada
 		text := keyscan.Text()
-		msg := sender.Username + ": " + text
-		var cifrado []byte
-		if text == "/exit" {
+		canSendMessage = true
+		exit = false
+		switch text {
+		case "/exit":
+			// Exit conversation
+			exit = true
 			break
-		} else {
-			if strings.HasPrefix(text, "/file ") {
-				filename := strings.Split(text, " ")[1]
-				file, err := ioutil.ReadFile(filename)
-				if !errorchecker.Check("ERROR ReadFile", err) {
-					cifrado = utils.EncryptAES(file, key)
-				}
+		case "/send_file":
+			// Send file entering path
+			fmt.Println("Path del archivo a enviar:")
+			keyscan.Scan()
+			filename := keyscan.Text()
+			file, err := ioutil.ReadFile(filename)
+			if !errorchecker.Check("ERROR ReadFile path", err) {
+				message.Date = time.Now().String()
+				t.Type = "file"
+				t.Name = message.Sender + "-" + time.Now().String() + filepath.Ext(filename)
+				message.Type = t
+				message.Content = utils.EncryptAES(file, key)
 			} else {
-				cifrado = utils.EncryptAES([]byte(msg), key)
+				canSendMessage = false
+			}
+			break
+		default:
+			// Normal message
+			bytesText := []byte(text)
+			message.Date = time.Now().String()
+			t.Type = "text"
+			t.Name = ""
+			message.Type = t
+			message.Content = utils.EncryptAES(bytesText, key)
+			break
+		}
+		if canSendMessage {
+			data, err := json.Marshal(message)
+			sendData := utils.Encode64(data)
+			if !errorchecker.Check("ERROR Marshaling", err) {
+				fmt.Fprintln(conn, sendData) // enviamos la entrada al servidor
 			}
 		}
-
-		fmt.Fprintln(conn, utils.Encode64(cifrado)) // enviamos la entrada al servidor
+		if exit {
+			break
+		}
 	}
-
 }
 
 //GetChats get the list of chats the use has
