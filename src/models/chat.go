@@ -58,7 +58,7 @@ var tr = &http.Transport{
 var https = &http.Client{Transport: tr}
 
 //StartChat starts the chat in the server
-func StartChat(sender PrivateUser, receivers []PublicUser, encrypterKey []byte) {
+func StartChat(sender PrivateUser, receivers []PublicUser) {
 	var chat Chat
 	var tokens []ChatToken
 	var token ChatToken
@@ -92,14 +92,8 @@ func StartChat(sender PrivateUser, receivers []PublicUser, encrypterKey []byte) 
 			chatInfo.Token = word
 			chatInfo.ChatID = chat.ID
 			sender.AddChatToState(chatInfo)
-			byteSender, _ := json.Marshal(sender.State)
-			compressed := utils.Compress(byteSender)
-			encrypted := utils.EncryptAES(compressed, encrypterKey)
-			stateStr := utils.Encode64(encrypted)
+			sender.UpdateState()
 			res.Body.Close()
-			https.PostForm(constants.ServerOrigin+"/update_state", url.Values{
-				"username": {sender.Username},
-				"state":    {stateStr}})
 		}
 	}
 	OpenChat(chat, sender)

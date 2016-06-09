@@ -42,6 +42,8 @@ func actionsMenu() {
 	printTitle()
 	fmt.Println("1. Nuevo Chat")
 	fmt.Println("2. Ver Chats")
+	fmt.Println("3. Ver Contactos")
+	fmt.Println("4. Buscar Usuarios")
 	fmt.Println("q. Cerrar sesión")
 }
 
@@ -56,7 +58,7 @@ func bye() {
 	fmt.Println("\nVuelve pronto!!")
 }
 
-func client(encrypterSlice []byte) {
+func client() {
 	fmt.Println("Bienvenido " + currentUser.Username + "!")
 	var c string
 	for c != "q" {
@@ -74,7 +76,7 @@ func client(encrypterSlice []byte) {
 				for _, id := range userIDS {
 					users = append(users, searchedUsers[id])
 				}
-				models.StartChat(currentUser, users, encrypterSlice)
+				models.StartChat(currentUser, users)
 			}
 		case c == "2":
 			fmt.Println("Listado de chats abiertos:")
@@ -83,7 +85,29 @@ func client(encrypterSlice []byte) {
 			if selection != -1 {
 				models.OpenChat(searchedChats[selection], currentUser)
 			}
-
+		case c == "3":
+			fmt.Println("¿Con quién quieres hablar?")
+			userIDS, err := showUsers(currentUser.State.Contacts)
+			var users []models.PublicUser
+			if !errorchecker.Check("ERROR", err) {
+				for _, id := range userIDS {
+					users = append(users, currentUser.State.Contacts[id])
+				}
+				models.StartChat(currentUser, users)
+			}
+		case c == "4":
+			fmt.Println("Busca los usuarios para añadir a contactos:")
+			var peerUsername string
+			fmt.Scanf("%s", &peerUsername)
+			searchedUsers := models.SearchUsers(peerUsername)
+			userIDS, err := showUsers(searchedUsers)
+			var users []models.PublicUser
+			if !errorchecker.Check("ERROR parseando usuarios", err) {
+				for _, id := range userIDS {
+					users = append(users, searchedUsers[id])
+				}
+				currentUser.AddUsersToContacts(users)
+			}
 		}
 	}
 
@@ -141,7 +165,7 @@ func showChats(chats []models.Chat) int {
 	return -1
 }
 
-func doLogin(username string, password []byte) (models.PrivateUser, []byte) {
+func doLogin(username string, password []byte) models.PrivateUser {
 	var user models.User
 	var u models.PrivateUser
 	chats := map[string]models.ChatPrivateInfo{}
@@ -156,6 +180,7 @@ func doLogin(username string, password []byte) (models.PrivateUser, []byte) {
 			res.Body.Close()
 			if user.Validate() {
 				u = user.Parse(encrypterSlice)
+				u.EncKey = encrypterSlice
 				postURL := origin + "/get_state"
 				parameters := url.Values{"username": {username}}
 				res, err := https.PostForm(postURL, parameters)
@@ -171,7 +196,7 @@ func doLogin(username string, password []byte) (models.PrivateUser, []byte) {
 
 		}
 	}
-	return u, encrypterSlice
+	return u
 }
 
 func registerMenu() {
@@ -184,7 +209,8 @@ func registerMenu() {
 	if user.Validate() {
 		currentUser = user
 		currentUser.State.Chats = map[string]models.ChatInfo{}
-		client(encrypterSlice)
+		currentUser.EncKey = encrypterSlice
+		client()
 	}
 }
 
@@ -195,10 +221,10 @@ func loginMenu() {
 	fmt.Println("Contraseña")
 	password, err := gopass.GetPasswd()
 	if !errorchecker.Check("ERROR contraseña", err) {
-		user, encrypterSlice := doLogin(username, password)
+		user := doLogin(username, password)
 		if user.Validate() {
 			currentUser = user
-			client(encrypterSlice)
+			client()
 		}
 	}
 }

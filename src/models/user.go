@@ -26,6 +26,7 @@ type PrivateUser struct {
 	Username string
 	State    State
 	PubKey   *rsa.PublicKey
+	EncKey   []byte
 }
 
 // PublicUser structure
@@ -39,6 +40,7 @@ type PublicUser struct {
 type State struct {
 	PrivateKey *rsa.PrivateKey
 	Chats      map[string]ChatInfo
+	Contacts   []PublicUser
 }
 
 // Validate given a user u it returns whether its attributes are valid or not
@@ -111,6 +113,25 @@ func InitializeState(privateKey *rsa.PrivateKey) []byte {
 //AddChatToState func
 func (u *PrivateUser) AddChatToState(chatinfo ChatInfo) {
 	u.State.Chats[chatinfo.ChatID] = chatinfo
+	u.UpdateState()
+}
+
+func (u *PrivateUser) AddUsersToContacts(users []PublicUser) {
+	for _, user := range users {
+		u.State.Contacts = append(u.State.Contacts, user)
+	}
+	u.UpdateState()
+}
+
+func (u *PrivateUser) UpdateState() {
+	byteSender, _ := json.Marshal(u.State)
+	compressed := utils.Compress(byteSender)
+	encrypted := utils.EncryptAES(compressed, u.EncKey)
+	stateStr := utils.Encode64(encrypted)
+	https.PostForm(constants.ServerOrigin+"/update_state", url.Values{
+		"username": {u.Username},
+		"state":    {stateStr},
+	})
 }
 
 // RegisterUser function
@@ -173,6 +194,7 @@ func (u *PrivateUser) UpdateChatsInfo(chats map[string]ChatPrivateInfo, key *rsa
 		info.Token = utils.DecryptOAEP(key, utils.Decode64(chat.Token), label)
 		u.State.Chats[chat.ChatID] = info
 	}
+	u.UpdateState()
 }
 
 // Print prints invoking user
