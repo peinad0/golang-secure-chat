@@ -125,7 +125,7 @@ func downloadFile(username string, message Message, key []byte) error {
 	filename := message.Type.Name
 	wd, err := os.Getwd()
 	errorchecker.Check("Error getting working directory", err)
-	err = ioutil.WriteFile(wd+"/Downloads/"+username+filename, descifrado, 0644)
+	err = ioutil.WriteFile(wd+"/Downloads/"+username+"-"+filename, descifrado, 0644)
 	return err
 }
 
@@ -232,6 +232,7 @@ func OpenChat(chat Chat, sender PrivateUser) {
 				t.Type = "file"
 				t.Name = message.Sender + "-" + time.Now().Format("20060102150405") + filepath.Ext(filename)
 				message.Type = t
+				fmt.Println("sexo")
 				message.Content = utils.EncryptAES(file, key)
 			} else {
 				canSendMessage = false
