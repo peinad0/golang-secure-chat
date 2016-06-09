@@ -12,6 +12,7 @@ import (
 	"project/client/src/constants"
 	"project/client/src/errorchecker"
 	"project/client/src/utils"
+	"strings"
 )
 
 // Message structure
@@ -141,6 +142,7 @@ func OpenChat(chat Chat, sender PrivateUser) {
 
 	if len(chat.Messages) > 0 {
 		for _, msg := range chat.Messages {
+			fmt.Println("key", key)
 			descifrado := utils.DecryptAES(utils.Decode64(msg.Content), key)
 			fmt.Printf("%s\n", descifrado)
 		}
@@ -158,18 +160,38 @@ func OpenChat(chat Chat, sender PrivateUser) {
 		for netscan.Scan() { // escaneamos la conexión
 			text := netscan.Text()
 			descifrado := utils.DecryptAES(utils.Decode64(text), key)
+			filename := "file.txt"
+			wd, err := os.Getwd()
+			if err != nil {
+				fmt.Println("error wd", err)
+			}
+			err = ioutil.WriteFile(wd+"/Downloads/"+filename, descifrado, 0644)
+
+			if !errorchecker.Check("ERROR WriteFile", err) {
+				fmt.Println("Descargado nuevo archivo en Descargas:", filename) // mostramos mensaje desde el servidor
+			}
 
 			fmt.Printf("%s\n", descifrado) // mostramos mensaje desde el servidor
 		}
 	}()
 
 	for keyscan.Scan() { // escaneamos la entrada
-		text := sender.Username + ": " + keyscan.Text()
-		if keyscan.Text() == "/exit" {
+		text := keyscan.Text()
+		msg := sender.Username + ": " + text
+		var cifrado []byte
+		if text == "/exit" {
 			break
+		} else {
+			if strings.HasPrefix(text, "/file ") {
+				filename := strings.Split(text, " ")[1]
+				file, err := ioutil.ReadFile(filename)
+				if !errorchecker.Check("ERROR ReadFile", err) {
+					cifrado = utils.EncryptAES(file, key)
+				}
+			} else {
+				cifrado = utils.EncryptAES([]byte(msg), key)
+			}
 		}
-
-		cifrado := utils.EncryptAES([]byte(text), key)
 
 		fmt.Fprintln(conn, utils.Encode64(cifrado)) // enviamos la entrada al servidor
 	}
