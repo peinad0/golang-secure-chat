@@ -120,12 +120,12 @@ func GetChatUsernames(components []string) map[string]string {
 	return usernames
 }
 
-func downloadFile(message Message, key []byte) error {
+func downloadFile(username string, message Message, key []byte) error {
 	descifrado := utils.DecryptAES(message.Content, key)
 	filename := message.Type.Name
 	wd, err := os.Getwd()
 	errorchecker.Check("Error getting working directory", err)
-	err = ioutil.WriteFile(wd+"/Downloads/"+filename, descifrado, 0644)
+	err = ioutil.WriteFile(wd+"/Downloads/"+username+filename, descifrado, 0644)
 	return err
 }
 
@@ -139,15 +139,21 @@ func (m *Message) Print() {
 
 }
 
-func handleMessage(msg Message, key []byte) {
+func handleMessage(username string, msg Message, key []byte) {
 	//msg.Print()
+	var sender string
 	switch msg.Type.Type {
 	case "text":
 		descifrado := utils.DecryptAES(msg.Content, key)
-		fmt.Printf("[%s] %s: %s\n", msg.Date, msg.Sender, descifrado)
+		if msg.Sender == username {
+			sender = "Yo"
+		} else {
+			sender = msg.Sender
+		}
+		fmt.Printf("[%s] %s: %s\n", msg.Date, sender, descifrado)
 		break
 	case "file":
-		err := downloadFile(msg, key)
+		err := downloadFile(username, msg, key)
 		if !errorchecker.Check("Error descargando archivo", err) {
 			fmt.Printf("[%s] %s: Archivo recibido: %s\n", msg.Date, msg.Sender, msg.Type.Name)
 		}
@@ -178,7 +184,7 @@ func OpenChat(chat Chat, sender PrivateUser) {
 
 	if len(chat.Messages) > 0 {
 		for _, msg := range chat.Messages {
-			handleMessage(msg, key)
+			handleMessage(sender.Username, msg, key)
 		}
 	}
 
@@ -196,7 +202,7 @@ func OpenChat(chat Chat, sender PrivateUser) {
 			data := netscan.Text()
 			receivedData := utils.Decode64(data)
 			json.Unmarshal(receivedData, &msg)
-			handleMessage(msg, key)
+			handleMessage(sender.Username, msg, key)
 		}
 	}()
 
@@ -210,6 +216,7 @@ func OpenChat(chat Chat, sender PrivateUser) {
 		text := keyscan.Text()
 		canSendMessage = true
 		exit = false
+		message.Date = time.Now().Format("2006-01-02 15:04:05")
 		switch text {
 		case "/exit":
 			// Exit conversation
@@ -222,9 +229,8 @@ func OpenChat(chat Chat, sender PrivateUser) {
 			filename := keyscan.Text()
 			file, err := ioutil.ReadFile(filename)
 			if !errorchecker.Check("ERROR ReadFile path", err) {
-				message.Date = time.Now().String()
 				t.Type = "file"
-				t.Name = message.Sender + "-" + time.Now().String() + filepath.Ext(filename)
+				t.Name = message.Sender + "-" + time.Now().Format("20060102150405") + filepath.Ext(filename)
 				message.Type = t
 				message.Content = utils.EncryptAES(file, key)
 			} else {
@@ -234,7 +240,6 @@ func OpenChat(chat Chat, sender PrivateUser) {
 		default:
 			// Normal message
 			bytesText := []byte(text)
-			message.Date = time.Now().String()
 			t.Type = "text"
 			t.Name = ""
 			message.Type = t
