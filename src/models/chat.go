@@ -385,10 +385,12 @@ func (c *Chat) UpdateKey(admin *PrivateUser) {
 	receivers := GetChatUsers(c.Components)
 
 	for _, receiver := range receivers {
-		receiverKey := utils.EncryptOAEP(receiver.PubKey, word, label)
-		token.Token = utils.Encode64(receiverKey)
-		token.Username = receiver.Username
-		tokens = append(tokens, token)
+		if receiver.ID != admin.ID {
+			receiverKey := utils.EncryptOAEP(receiver.PubKey, word, label)
+			token.Token = utils.Encode64(receiverKey)
+			token.Username = receiver.Username
+			tokens = append(tokens, token)
+		}
 	}
 	marshaledTokens, _ := json.Marshal(tokens)
 	strTokens := utils.Encode64(marshaledTokens)
