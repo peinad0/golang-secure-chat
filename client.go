@@ -137,7 +137,6 @@ func parseSelection(selection string) ([]int, error) {
 			return nil, errors.New("Error parseando usuario")
 		}
 	}
-	fmt.Println(userIDS)
 	return userIDS, nil
 }
 

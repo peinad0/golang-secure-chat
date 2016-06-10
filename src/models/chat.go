@@ -333,7 +333,6 @@ func (c *Chat) DeleteUser(users []PublicUser, selected []int) Chat {
 	for _, i := range selected {
 		deleteUsers = append(deleteUsers, users[i])
 	}
-	fmt.Println(len(deleteUsers))
 	postURL := constants.ServerOrigin + "/delete_chat_users"
 	bytesUsers, _ := json.Marshal(deleteUsers)
 	chatBytes, _ := json.Marshal(c)
@@ -417,7 +416,6 @@ func AdministrarChat(admin *PrivateUser, chat Chat) {
 		users := GetChatUsers(chat.Components)
 		selection, _ := showUsers(users)
 		updatedChat := chat.DeleteUser(users, selection)
-		fmt.Println("updated", updatedChat.Admin, "admin", admin.Username)
 
 		updatedChat.UpdateKey(admin, updatedChat.Admin == admin.Username)
 
