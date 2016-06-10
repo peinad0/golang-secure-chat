@@ -44,6 +44,7 @@ func actionsMenu() {
 	fmt.Println("2. Ver Chats")
 	fmt.Println("3. Ver Contactos")
 	fmt.Println("4. Buscar Usuarios")
+	fmt.Println("5. Administrar Grupos")
 	fmt.Println("q. Cerrar sesión")
 }
 
@@ -78,13 +79,16 @@ func client() {
 				}
 				models.StartChat(currentUser, users)
 			}
+			break
 		case c == "2":
 			fmt.Println("Listado de chats abiertos:")
 			searchedChats, _ := models.GetChats(currentUser)
+			fmt.Println("aveces")
 			selection := showChats(searchedChats)
 			if selection != -1 {
 				models.OpenChat(searchedChats[selection], currentUser)
 			}
+			break
 		case c == "3":
 			fmt.Println("¿Con quién quieres hablar?")
 			userIDS, err := showUsers(currentUser.State.Contacts)
@@ -95,6 +99,7 @@ func client() {
 				}
 				models.StartChat(currentUser, users)
 			}
+			break
 		case c == "4":
 			fmt.Println("Busca los usuarios para añadir a contactos:")
 			var peerUsername string
@@ -108,11 +113,20 @@ func client() {
 				}
 				currentUser.AddUsersToContacts(users)
 			}
+			break
+		case c == "5":
+			fmt.Println("Elegir chat para administrar:")
+			chats := models.GetAdminChats(currentUser.Username)
+			selection := showChats(chats)
+			if selection != -1 {
+				models.AdministrarChat(&currentUser, chats[selection])
+			}
 		}
 	}
 
 	cleanup()
 }
+
 func parseSelection(selection string) ([]int, error) {
 	var userIDS []int
 	stringUsers := strings.Split(selection, ",")
