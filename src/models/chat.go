@@ -101,7 +101,6 @@ func StartChat(sender PrivateUser, receivers []PublicUser) {
 			name = "(Undefined)"
 		}
 	}
-	fmt.Println(name)
 	res, err := https.PostForm(constants.ServerOrigin+"/new_chat", url.Values{
 		"sender": {sender.Username},
 		"type":   {chatType},
@@ -400,6 +399,18 @@ func AdministrarChat(admin *PrivateUser, chat Chat) {
 	fmt.Scanf("%s", &c)
 	switch c {
 	case "1":
+		var username string
+		fmt.Println("Introduce el nombre del usuario al que quiere añadir:")
+		fmt.Scanf("%s", &username)
+		searchedUsers := SearchUsers(username)
+		userIDS, err := showUsers(searchedUsers)
+		var users []PublicUser
+		if !errorchecker.Check("ERROR parseando usuarios", err) {
+			for _, id := range userIDS {
+				users = append(users, searchedUsers[id])
+			}
+			chat.AddUsers(users, admin.State.Chats[chat.ID].Token)
+		}
 		break
 	case "2":
 		users := GetChatUsers(chat.Components)
@@ -407,6 +418,37 @@ func AdministrarChat(admin *PrivateUser, chat Chat) {
 		updatedChat := chat.DeleteUser(users, selection)
 		updatedChat.UpdateKey(admin)
 		break
+	}
+}
+
+//AddUsers func
+func (c *Chat) AddUsers(users []PublicUser, word []byte) {
+	var label []byte
+	var tokens []ChatToken
+	var token ChatToken
+	var chat Chat
+	for _, receiver := range users {
+		receiverKey := utils.EncryptOAEP(receiver.PubKey, word, label)
+		token.Token = utils.Encode64(receiverKey)
+		token.Username = receiver.Username
+		tokens = append(tokens, token)
+	}
+	marshaledTokens, _ := json.Marshal(tokens)
+	strTokens := utils.Encode64(marshaledTokens)
+
+	marshaledChat, err := json.Marshal(c)
+	data := utils.Encode64(marshaledChat)
+
+	res, err := https.PostForm(constants.ServerOrigin+"/add_chat_users", url.Values{
+		"chat":   {data},
+		"tokens": {strTokens}})
+	if !errorchecker.Check("ERROR post", err) {
+		body, err := ioutil.ReadAll(res.Body)
+		if !errorchecker.Check("ERROR read body", err) {
+			json.Unmarshal(body, &chat)
+			res.Body.Close()
+			c.Components = chat.Components
+		}
 	}
 }
 
