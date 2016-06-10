@@ -51,7 +51,7 @@ func actionsMenu() {
 func mainMenu() {
 	printTitle()
 	fmt.Println("1. Iniciar Sesión")
-	fmt.Println("2. Registarse")
+	fmt.Println("2. Registrarse")
 	fmt.Println("q. salir")
 }
 
@@ -83,7 +83,6 @@ func client() {
 		case c == "2":
 			fmt.Println("Listado de chats abiertos:")
 			searchedChats, _ := models.GetChats(currentUser)
-			fmt.Println("aveces")
 			selection := showChats(searchedChats)
 			if selection != -1 {
 				models.OpenChat(searchedChats[selection], currentUser)

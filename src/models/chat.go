@@ -351,7 +351,7 @@ func (c *Chat) DeleteUser(users []PublicUser, selected []int) Chat {
 }
 
 //UpdateKey func
-func (c *Chat) UpdateKey(admin *PrivateUser) {
+func (c *Chat) UpdateKey(admin *PrivateUser, updateAdmin bool) {
 	var tokens []ChatToken
 	var token ChatToken
 	var chat Chat
@@ -361,8 +361,10 @@ func (c *Chat) UpdateKey(admin *PrivateUser) {
 
 	chatInfo.ChatID = c.ID
 	chatInfo.Token = word
-	admin.State.Chats[c.ID] = chatInfo
-	admin.UpdateState()
+	if updateAdmin {
+		admin.State.Chats[c.ID] = chatInfo
+		admin.UpdateState()
+	}
 
 	receivers := GetChatUsers(c.Components)
 
@@ -388,7 +390,6 @@ func (c *Chat) UpdateKey(admin *PrivateUser) {
 			res.Body.Close()
 		}
 	}
-	fmt.Println(chat.Components)
 }
 
 //AdministrarChat func
@@ -416,7 +417,10 @@ func AdministrarChat(admin *PrivateUser, chat Chat) {
 		users := GetChatUsers(chat.Components)
 		selection, _ := showUsers(users)
 		updatedChat := chat.DeleteUser(users, selection)
-		updatedChat.UpdateKey(admin)
+		fmt.Println("updated", updatedChat.Admin, "admin", admin.Username)
+
+		updatedChat.UpdateKey(admin, updatedChat.Admin == admin.Username)
+
 		break
 	}
 }
