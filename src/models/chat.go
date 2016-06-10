@@ -96,6 +96,7 @@ func StartChat(sender PrivateUser, receivers []PublicUser) {
 		fmt.Println("Nombre del grupo: ")
 		reader := bufio.NewReader(os.Stdin)
 		name, _ = reader.ReadString('\n')
+		name = strings.TrimSuffix(name, "\n")
 		if len(name) == 0 {
 			name = "(Undefined)"
 		}
@@ -245,7 +246,6 @@ func OpenChat(chat Chat, sender PrivateUser) {
 				t.Type = "file"
 				t.Name = message.Sender + "-" + time.Now().Format("20060102150405") + filepath.Ext(filename)
 				message.Type = t
-				fmt.Println("sexo")
 				message.Content = utils.EncryptAES(file, key)
 			} else {
 				canSendMessage = false
@@ -324,25 +324,7 @@ func parseSelection(selection string) ([]int, error) {
 			return nil, errors.New("Error parseando usuario")
 		}
 	}
-	fmt.Println(userIDS)
 	return userIDS, nil
-}
-func showUsers(users []PublicUser) ([]int, error) {
-	var usersSelected string
-	if len(users) > 0 {
-		for index, user := range users {
-			fmt.Println(index, user.Username)
-		}
-		fmt.Scanf("%s", &usersSelected)
-		users, err := parseSelection(usersSelected)
-		if err == nil {
-			return users, nil
-		}
-		fmt.Println("Error seleccionando usuario.")
-		return nil, errors.New("Error seleccionando usuario")
-	}
-	fmt.Println("No se encontraron usuarios.")
-	return nil, errors.New("No se encontraron usuarios.")
 }
 
 //DeleteUser func
@@ -352,6 +334,7 @@ func (c *Chat) DeleteUser(users []PublicUser, selected []int) Chat {
 	for _, i := range selected {
 		deleteUsers = append(deleteUsers, users[i])
 	}
+	fmt.Println(len(deleteUsers))
 	postURL := constants.ServerOrigin + "/delete_chat_users"
 	bytesUsers, _ := json.Marshal(deleteUsers)
 	chatBytes, _ := json.Marshal(c)
@@ -425,6 +408,24 @@ func AdministrarChat(admin *PrivateUser, chat Chat) {
 		updatedChat.UpdateKey(admin)
 		break
 	}
+}
+
+func showUsers(users []PublicUser) ([]int, error) {
+	var usersSelected string
+	if len(users) > 0 {
+		for index, user := range users {
+			fmt.Println(index, user.Username)
+		}
+		fmt.Scanf("%s", &usersSelected)
+		users, err := parseSelection(usersSelected)
+		if err == nil {
+			return users, nil
+		}
+		fmt.Println("Error seleccionando usuario.")
+		return nil, errors.New("Error seleccionando usuario")
+	}
+	fmt.Println("No se encontraron usuarios.")
+	return nil, errors.New("No se encontraron usuarios.")
 }
 
 //GetChats get the list of chats the use has
