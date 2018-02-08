@@ -1,0 +1,33 @@
+// User
+
+{
+    "id" : 1,
+    "name": "admin",
+    "password": "VqBLJb/V3ZaDVreo44VuOg9RnsV+I7fLF7iqtBN+33Y=",
+    "salt": "cmFuZG9tIHNhbHQ=",
+    "pubk": "",
+    "privk": "",
+    "chats" : {
+        "id": 1,
+        "token": "token"
+    }
+}
+
+// Chat
+
+{
+    "id": 1,
+    "name": "Jesus y David",
+    "type": "individual",
+    "components": [1,2],
+    "messages": [1,2,3]
+}
+
+// Message
+
+{
+    "id": 1,
+    "content": "hola",
+    "date": "",
+    "sender": 1
+}

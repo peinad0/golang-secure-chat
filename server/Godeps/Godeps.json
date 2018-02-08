@@ -1,0 +1,43 @@
+{
+	"ImportPath": "project/server",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v60",
+	"Deps": [
+		{
+			"ImportPath": "golang.org/x/crypto/pbkdf2",
+			"Rev": "285fb2ed20d1dc450fc743a1b3ff7c36bef372b9"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/scrypt",
+			"Rev": "285fb2ed20d1dc450fc743a1b3ff7c36bef372b9"
+		},
+		{
+			"ImportPath": "golang.org/x/net/websocket",
+			"Rev": "3e5cd1ed149001198e582f9d3f5bfd564cde2896"
+		},
+		{
+			"ImportPath": "gopkg.in/mgo.v2",
+			"Comment": "r2016.02.04-1-gb6e2fa3",
+			"Rev": "b6e2fa371e64216a45e61072a96d4e3859f169da"
+		},
+		{
+			"ImportPath": "gopkg.in/mgo.v2/bson",
+			"Comment": "r2016.02.04-1-gb6e2fa3",
+			"Rev": "b6e2fa371e64216a45e61072a96d4e3859f169da"
+		},
+		{
+			"ImportPath": "gopkg.in/mgo.v2/internal/sasl",
+			"Comment": "r2016.02.04-1-gb6e2fa3",
+			"Rev": "b6e2fa371e64216a45e61072a96d4e3859f169da"
+		},
+		{
+			"ImportPath": "gopkg.in/mgo.v2/internal/scram",
+			"Comment": "r2016.02.04-1-gb6e2fa3",
+			"Rev": "b6e2fa371e64216a45e61072a96d4e3859f169da"
+		},
+		{
+			"ImportPath": "project/client/src/errorchecker",
+			"Rev": "df30cab59464b9edf4edbedbd6093502bf57296b"
+		}
+	]
+}
